@@ -32,18 +32,32 @@ function opt(name, fallback) {
  */
 const MODELS = {
   // --- frontier / hosted APIs ---
-  claude:     { provider: 'claude',       model: 'claude-sonnet-4-6',                tier: 'frontier' },
-  gpt:        { provider: 'openai',       model: 'gpt-4o',                           tier: 'frontier' },
-  gemini:     { provider: 'gemini',       model: 'gemini-2.5-pro-preview-05-06',     tier: 'frontier' },
-  grok:       { provider: 'grok',         model: 'grok-3',                           tier: 'frontier' },
-  perplexity: { provider: 'perplexity',   model: 'sonar-pro',                        tier: 'frontier' },
+  /**
+   * Frontier tier. The Claude IDs are current as of 2026-08; the others are
+   * env-overridable because I could not verify their current IDs, and a stale ID is a
+   * 404 rather than a quiet degradation — one env var beats a wrong default.
+   */
+  claude:     { provider: 'claude',     model: process.env.CLAUDE_MODEL || 'claude-opus-5',   tier: 'frontier' },
+  'claude-sonnet': { provider: 'claude', model: 'claude-sonnet-5',                            tier: 'frontier' },
+  gpt:        { provider: 'openai',     model: process.env.OPENAI_MODEL || 'gpt-4o',          tier: 'frontier' },
+  gemini:     { provider: 'gemini',     model: process.env.GEMINI_MODEL || 'gemini-2.5-pro',  tier: 'frontier' },
+  grok:       { provider: 'grok',       model: process.env.GROK_MODEL || 'grok-3',            tier: 'frontier' },
+  perplexity: { provider: 'perplexity', model: process.env.PERPLEXITY_MODEL || 'sonar-pro',   tier: 'frontier' },
 
-  // --- open models via Ollama Cloud (no local GPU) ---
-  'gpt-oss':  { provider: 'ollama-cloud', model: process.env.CLOUD_MODEL_1 || 'gpt-oss:120b',                    tier: 'large-open' },
-  'gemini3':  { provider: 'ollama-cloud', model: process.env.CLOUD_MODEL_2 || 'gemini-3-flash-preview:cloud',    tier: 'large-open' },
-  glm:        { provider: 'ollama-cloud', model: process.env.CLOUD_MODEL_3 || 'glm-5.1:cloud',                   tier: 'large-open' },
-  nemotron:   { provider: 'ollama-cloud', model: process.env.CLOUD_MODEL_4 || 'nemotron-3-super:cloud',          tier: 'large-open' },
-  rnj:        { provider: 'ollama-cloud', model: process.env.CLOUD_MODEL_5 || 'rnj-1:8b-cloud',                  tier: 'large-open' },
+  /**
+   * Hosted open models via Ollama Cloud. Probed 2026-08-05 on this account:
+   * gpt-oss:120b and nemotron-3-super answer; glm-5.1 requires a paid subscription;
+   * gemini-3-flash-preview (retired 2026-07-15) and rnj-1:8b (retired 2026-06-30) are
+   * gone. The dead entries are kept, marked, and OUT of every roster — a retired model
+   * in a roster is a batch that fails an hour in, and deleting the entry loses the
+   * record of why it is not there.
+   */
+  'gpt-oss-120b': { provider: 'ollama-cloud', model: process.env.CLOUD_MODEL_1 || 'gpt-oss:120b',          tier: 'large-open' },
+  nemotron:       { provider: 'ollama-cloud', model: process.env.CLOUD_MODEL_4 || 'nemotron-3-super:cloud', tier: 'large-open' },
+  // Unavailable on this account — do not put these in a roster.
+  glm:      { provider: 'ollama-cloud', model: 'glm-5.1:cloud',                  tier: 'large-open', unavailable: 'requires a paid Ollama subscription' },
+  'gemini3': { provider: 'ollama-cloud', model: 'gemini-3-flash-preview:cloud',  tier: 'large-open', unavailable: 'retired 2026-07-15' },
+  rnj:      { provider: 'ollama-cloud', model: 'rnj-1:8b-cloud',                 tier: 'large-open', unavailable: 'retired 2026-06-30' },
 
   // --- small models, served locally by Ollama (all resident; ~8 GB for the five) ---
   qwen:       { provider: 'ollama', model: process.env.OLLAMA_SMALL_MODEL   || 'qwen3.5:2b',            tier: 'small-local' },
@@ -155,7 +169,22 @@ const ROSTERS = {
 
   // Single-tier fields: how a tier does against itself.
   api: ['claude', 'gpt', 'gemini', 'grok', 'perplexity', 'claude', 'gpt'],
-  cloud: ['gpt-oss', 'gemini3', 'glm', 'nemotron', 'rnj', 'gpt-oss', 'gemini3'],
+
+  /**
+   * Open question 4 — the check that validates every other number in RESULTS.md.
+   * Frontier models seated with the rule-based control and one local anchor
+   * (qwen3-4b) so the result links back to runs 007-011 through the anchor.
+   */
+  'frontier-vs-control': ['claude', 'gpt', 'gemini', 'grok', 'qwen3-4b', 'scripted', 'scripted'],
+
+  /**
+   * The affordable substitute for `frontier-vs-control`, which is blocked on unfunded
+   * API accounts. Seats gpt-oss:120b beside gpt-oss:20b — the SAME model family at 6x
+   * the parameters — so scale is compared within a family rather than across vendors,
+   * with the control on the board and qwen3-4b anchoring back to runs 007-011.
+   */
+  'scale-vs-control': ['gpt-oss-120b', 'gpt-oss-120b', 'nemotron', 'gpt-oss-20b', 'qwen3-4b', 'scripted', 'scripted'],
+  cloud: ['gpt-oss-120b', 'gpt-oss-120b', 'nemotron', 'nemotron', 'qwen3-4b', 'scripted', 'scripted'],
   local: ['qwen', 'gemma', 'llama', 'smollm', 'granite', 'qwen', 'gemma'],
 
   /**
@@ -164,7 +193,7 @@ const ROSTERS = {
    * board — a small-vs-small game tells you they are bad at it together, which is a
    * different and much weaker claim.
    */
-  mixed: ['claude', 'gpt-oss', 'gemini3', 'qwen', 'gemma', 'glm', 'nemotron'],
+  mixed: ['claude', 'gpt-oss-120b', 'nemotron', 'qwen', 'gemma', 'qwen3-4b', 'scripted'],
 
   /** Small models plus the rule-based baseline, to separate skill from format. */
   'local-vs-baseline': ['qwen', 'gemma', 'llama', 'smollm', 'granite', 'scripted', 'scripted'],
@@ -283,6 +312,9 @@ function buildSeats() {
     const entry = MODELS[key];
     if (!entry) {
       throw new Error(`Unknown model "${key}". Available: ${Object.keys(MODELS).join(', ')}`);
+    }
+    if (entry.unavailable) {
+      throw new Error(`Model "${key}" is unavailable: ${entry.unavailable}. Remove it from the roster.`);
     }
     if (seatContext && !['ledger', 'full'].includes(seatContext)) {
       throw new Error(`Unknown context mode "${seatContext}" for seat "${key}". Use ledger or full.`);

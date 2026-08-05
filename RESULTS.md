@@ -485,3 +485,45 @@ Hardware for every run: Apple M1 Max, 64 GB, local Ollama. Raw logs in `results/
 - **Expected:** no transfer. CTF replays teach shell-command selection, not social
   inference, and trainingResearch's v5/v7 lesson was that replay loops reinforce a
   model's own mistakes.
+
+## 012 — Frontier APIs are BLOCKED (billing), substituted with within-family scale — 2026-08-05
+
+- **Why:** open question 4 — do frontier models clear the rule-based control? It is the
+  check that validates every other number in this log: if frontier models also sit near
+  +0.13, the benchmark is measuring bandwagon dynamics rather than reasoning.
+- **BLOCKED — all four frontier providers refused on account state, not on code.** Probed
+  one cheap call each before committing to a batch:
+
+  | provider | model | result |
+  |---|---|---|
+  | Anthropic | claude-opus-5 | `400` — credit balance too low |
+  | OpenAI | gpt-4o | `429` — account is not active, check billing |
+  | xAI | grok-3 | `403` |
+  | Google | gemini-2.5-pro | fetch error |
+
+  Keys authenticate; the accounts are unfunded. **Open question 4 cannot be answered
+  from this machine until an API account is funded** — no amount of harness work
+  substitutes.
+- **DEFECT 14 found by the same probe (would have failed the whole batch).** The Claude
+  adapter, ported from the CTF project, sent `temperature: 0.8`. Sampling parameters are
+  **rejected with a 400 on every current Claude model** (Opus 5, Sonnet 5, Opus 4.8/4.7),
+  so the roster would have died on its first call. Also updated: `claude-sonnet-4-6` →
+  `claude-opus-5`, structured outputs via `output_config.format`, and `max_tokens` raised
+  because on Opus 5 it caps thinking *plus* response text together. A one-call-per-provider
+  probe cost about a tenth of a cent and caught it.
+- **Ollama Cloud, probed the same way:** `gpt-oss:120b` and `nemotron-3-super` answer;
+  `glm-5.1` needs a paid subscription; `gemini-3-flash-preview` (retired 2026-07-15) and
+  `rnj-1:8b` (retired 2026-06-30) are gone. Three of the five entries carried over from
+  the CTF config were dead. They are now marked `unavailable` and **preflight refuses any
+  roster containing one** — a retired model otherwise fails a batch an hour in.
+- **SUBSTITUTED — `scale-vs-control`, which is arguably the better experiment.** Seats
+  **gpt-oss:120b beside gpt-oss:20b**: the same model family at 6x the parameters, on one
+  board, with the control present and `qwen3-4b` anchoring back to 007-011. That compares
+  scale *within* a family rather than across vendors, so a difference cannot be a
+  vendor-training artefact. gpt-oss:20b already measured +0.113 (009b), which makes this a
+  direct read on whether 6x the parameters buys detection.
+- **Pilot health (6 games, seed 7):** zero API errors. gpt-oss:120b 10/10 valid JSON at
+  5.5 s/call; nemotron 3/4 at 21.8 s; gpt-oss:20b 3/3; qwen3:4b 2/2. Results to follow.
+- **What this does NOT establish:** nothing about frontier models. `gpt-oss:120b` is a
+  large open model, not GPT-5 or Opus 5, so question 4 stays open and the caveat on every
+  other table stands.

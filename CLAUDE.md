@@ -181,6 +181,17 @@ the pull, then defeated deliberately (`--mem-budget=5` must refuse; a real budge
 pass) — **a check that has not been defeated is a guess**, and this one had silently
 printed nothing when I first claimed it worked.
 
+**DEFECT 14 — a ported adapter sent a parameter that is now a hard error.** The Claude
+adapter carried `temperature: 0.8` over from the CTF project. Sampling parameters
+(`temperature`, `top_p`, `top_k`) are **rejected with a 400 on every current Claude
+model**, so the frontier roster would have died on its first call rather than degrading.
+Found by a one-call-per-provider probe that cost about a tenth of a cent, run before
+committing to a paid batch. The same probe found three of five Ollama Cloud models from
+that config were retired or subscription-gated. **Lesson: a ported integration inherits
+the API of the day it was written. Probe one call per provider before a paid batch — and
+mark dead models `unavailable` so preflight refuses them, rather than deleting the entry
+and losing the record of why.**
+
 **DEFECT 13 — the leaderboard pooled the arms of my own experiment.** Run 011 seated the
 same model twice, differing only in `contextMode`, to compare ledger against full
 transcript within one game. `aggregate()` keyed rows on `p.model`, so both seats merged
@@ -271,8 +282,11 @@ Noise floor: **±0.09 at n=30**, measured from identical anchor models across 00
    chance — but dead-player references went **43 vs 11** and invalid **0.103 vs 0.013**. A
    LoRA on out-of-domain replays degraded roster tracking, a capability it never targeted,
    for no detection gain.
-4. **Do frontier models clear the control at all?** Untested, and it is the check that
-   validates every other number — if they sit near +0.13 too, the game is measuring
-   bandwagon dynamics rather than reasoning.
+4. **Do frontier models clear the control at all?** **BLOCKED, not untested** (012): all
+   four frontier accounts are unfunded — Anthropic 400 credit balance, OpenAI 429 inactive,
+   xAI 403, Google fetch error. Keys authenticate; there is no credit. Substituted with
+   `scale-vs-control` (gpt-oss:120b vs gpt-oss:20b, same family, 6x parameters), which
+   measures whether scale buys detection but says nothing about frontier models. **This
+   remains the check that validates every other number in RESULTS.md.**
 5. **Swiftlet's 35B/80B streamed tier.** Deferred deliberately while the output contract
    was broken, since the resident 20B hit that wall first. Now worth the 18 GB.
