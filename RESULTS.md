@@ -247,7 +247,69 @@ Hardware for every run: Apple M1 Max, 64 GB, local Ollama. Raw logs in `results/
   run, so it remains untested whether *anything* clears the control by a margin that
   survives this noise floor — which is the check that validates every row above.
 
-## 008 — `--context=full` vs `ledger`, paired — RUNNING
+## 008 — RESULT: `--context=full` vs `ledger`, paired, 60 games each
+
+- **Why:** prediction 4 in `RESEARCH.md`, the only one whose answer is useful either way.
+  The ledger exists because trainingResearch finding 55 measured context as the largest
+  small-model lever *while* a window wider than the capacity can use made results worse,
+  and findings 10/50 measured an explicit table beating added parameters.
+- **Setup:** identical to 007 — same roster, **same seed 7**, 60 games, schema contract —
+  changing only `--context=full`. Town won **7 of 60**, against 13 of 60 in 007.
+- **RESULT — det.lift, paired:**
+
+  | model | ledger (007) | full (008) | delta | vs control |
+  |---|---|---|---|---|
+  | qwen3:4b | +0.078 | −0.035 | −0.113 | +0.023 |
+  | gemma3:1b | +0.085 | −0.033 | −0.118 | +0.018 |
+  | **control** | +0.146 | +0.010 | **−0.136** | (is control) |
+  | gpt-oss:20b | +0.108 | −0.028 | −0.136 | −0.000 |
+  | qwen3.5:2b | +0.167 | −0.195 | **−0.362** | **−0.226** |
+
+- **FINDING — the derived ledger beats the raw transcript for every arm, and it is not
+  close.** Absolute drops of −0.113 to −0.362, every model going from positive to
+  *negative* detection lift, and town wins nearly halving. On the absolute numbers the
+  ledger is the single largest design lever measured in this project.
+- **FINDING — but the rule-based control dropped too, by −0.136, and it never reads the
+  rendered prompt at all.** The control consumes `view.suspicions` and `view.votes` as
+  structured data; `--context=full` cannot touch its inputs directly. Its drop is
+  *downstream*: the models played differently, the games diverged, and the control's
+  policy depends on other players' voting records and on the bandwagon signal. So a large
+  part of the absolute effect is "these games got harder for everyone", not "full context
+  hurt this model".
+- **FINDING — corrected against the control, only the 2B model is materially affected.**
+  qwen3.5:2b −0.226 relative; gpt-oss:20b **−0.000**; qwen3:4b +0.023 and gemma3:1b +0.018,
+  both inside noise. **Prediction 4 is therefore half right.** It predicted the ledger
+  would help small models and be noise for large ones: the difficulty-corrected numbers say
+  exactly that for the 2B and the 20B, while the raw numbers say the ledger helps
+  everything. Which of those is the real effect is not settled by this design.
+- **LIMITATION that matters more than the result — paired seeds fix initial conditions,
+  not trajectories.** The seed fixes role assignment, seating and tie-breaks, but the
+  moment any model makes a different choice the two games diverge. So 007 and 008 are
+  paired at setup and independent thereafter, and "full context hurt model X" cannot be
+  cleanly separated from "full context made the games harder for everybody". The control's
+  −0.136 is the size of that confound, and it is as large as most of the effects.
+- **Secondary observations:** `consist` fell in full mode for every arm (control
+  0.858→0.751, gemma3:1b 0.705→0.470), so players' votes matched their stated accusations
+  less often when given raw transcripts. gemma3:1b's invalid rose 0.136→**0.170**, over the
+  0.15 gate. `calib` moved slightly *up* for the models (qwen3.5:2b −0.050→+0.067,
+  gpt-oss:20b +0.040→+0.098) — unexplained, and not over-read at this n.
+- **Design consequence:** `--context=ledger` stays the default, now on evidence rather
+  than on the inference from findings 55/10/50 that motivated it.
+
+## 011 — Isolate the context effect: one seat differs — QUEUED (design)
+
+- **Why:** 008 cannot attribute its own result, because both arms changed every seat at
+  once and the games diverged. This is the fix.
+- **Setup:** all seven seats on `--context=ledger` except **one**, which gets `full`. Run
+  the mirror too (all `full`, one `ledger`). Compare that seat against its own tier-mates
+  *inside the same games*, so trajectory divergence is shared by construction and
+  cancels instead of confounding.
+- **Requires a small change:** context mode is currently global
+  (`CONFIG.game.contextMode`, applied to every agent in `buildAgents`). It needs to be
+  per-seat — a roster entry option rather than one flag.
+- **Why this is the right next experiment:** it is the only way to turn 008's large but
+  unattributable effect into an attributable one, and the ledger is load-bearing enough
+  in this design that it deserves a clean number.
 
 - **Why:** the only prediction in `RESEARCH.md` whose answer is useful either way
   (prediction 4). The ledger exists because trainingResearch finding 55 measured context

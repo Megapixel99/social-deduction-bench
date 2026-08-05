@@ -233,8 +233,13 @@ design) without ever being co-resident.
 
 ## Open questions
 
-1. **Does the derived ledger actually help small models?** (`RESULTS.md` 008.) The only
-   prediction whose answer is useful either way.
+1. ~~**Does the derived ledger actually help small models?**~~ **Measured (008): yes on
+   the raw numbers, for every arm — but not cleanly attributable.** The rule-based
+   control, which never reads the rendered prompt, dropped by the same −0.136, so most of
+   the absolute effect is games getting harder rather than context mode. Corrected against
+   it, only the 2B model is affected. **Paired seeds fix initial conditions, not
+   trajectories** — the arms diverge at the first differing choice. Resolving it needs
+   per-seat context mode (`RESULTS.md` 011), which is the highest-value change outstanding.
 2. **Is the inverted size ordering in 007 real?** A 2B above a 20B is suspicious enough
    to earn the standing rule about distrusting a good measurement. 009's ladder, with a
    non-reasoning 24B beside the reasoning 20B, separates size from reasoning mode.
