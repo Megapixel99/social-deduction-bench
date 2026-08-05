@@ -231,6 +231,17 @@ into three batches that share `llama3.1-8b` and `qwen3-4b` as **anchors at the s
 seed**, so the large models are comparable *through* the anchors (a common-reference
 design) without ever being co-resident.
 
+## Reading the results safely
+
+**det.lift is a property of a model *in a field*, not of a model** (010). Roster
+composition moves a weak model's score more than its own identity does, because detection
+depends on the evidence other players generate — gemma3:1b spans a 0.414 range across
+batches at n=30–60. So compare across batches **only through shared anchors at the same
+seed** (the 009b/c design, where the control drifted −0.008), never by lifting a row from
+one table beside a row from another.
+
+Noise floor: **±0.09 at n=30**, measured from identical anchor models across 009b/009c.
+
 ## Open questions
 
 1. ~~**Does the derived ledger actually help small models?**~~ **Measured (008): yes on
@@ -240,10 +251,16 @@ design) without ever being co-resident.
    it, only the 2B model is affected. **Paired seeds fix initial conditions, not
    trajectories** — the arms diverge at the first differing choice. Resolving it needs
    per-seat context mode (`RESULTS.md` 011), which is the highest-value change outstanding.
-2. **Is the inverted size ordering in 007 real?** A 2B above a 20B is suspicious enough
-   to earn the standing rule about distrusting a good measurement. 009's ladder, with a
-   non-reasoning 24B beside the reasoning 20B, separates size from reasoning mode.
-3. **Does CTF-replay fine-tuning transfer?** (010, paired against its own base model.)
+2. ~~**Is the inverted size ordering in 007 real?**~~ **Answered (009b/c): reasoning mode,
+   not size.** mistral-small:24b — larger and non-reasoning — scores at chance (−0.001)
+   where gpt-oss:20b with low reasoning effort scores +0.113, Δ ≈ +0.114 against ~0.010
+   anchor drift, both with near-perfect compliance. The reasoning model is also 4.4× cheaper
+   per call.
+3. ~~**Does CTF-replay fine-tuning transfer?**~~ **Measured (010): no, and it cost
+   compliance.** Tuned −0.133 vs its own base −0.159 is inside the noise floor, both below
+   chance — but dead-player references went **43 vs 11** and invalid **0.103 vs 0.013**. A
+   LoRA on out-of-domain replays degraded roster tracking, a capability it never targeted,
+   for no detection gain.
 4. **Do frontier models clear the control at all?** Untested, and it is the check that
    validates every other number — if they sit near +0.13 too, the game is measuring
    bandwagon dynamics rather than reasoning.

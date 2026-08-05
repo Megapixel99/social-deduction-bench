@@ -380,6 +380,46 @@ Hardware for every run: Apple M1 Max, 64 GB, local Ollama. Raw logs in `results/
   (invalid 0.152) is over the gate. Town won 8/30 and 6/30, so deception-side numbers come
   from short games. One seed family throughout.
 
+## 010 — RESULT: CTF fine-tune vs its own base — no transfer, and it cost compliance
+
+- **Why:** the CTF project's `ctf-custom-q4` is Qwen2.5-3B + LoRA on capture-the-flag
+  replays, reported there as matching mid-size cloud models on offense (bounded) and
+  trailing on defense (open-ended). Seated beside **its own base model** so a difference
+  cannot be explained by size or family.
+- **Setup:** `--roster=ctf-transfer --games=30 --seed=7`. 2× ctf-custom-q4, 2× qwen2.5:3b,
+  gemma3:1b, granite3.1-dense:2b, 1× control. Town won **2 of 30**.
+- **RESULT:**
+
+  | model | n | det.lift | invalid | calib | dead-player refs |
+  |---|---|---|---|---|---|
+  | gemma3:1b | 30 | +0.202 | 0.128 | 0.000 | 20 |
+  | control | 30 | +0.071 | 0.000 | +0.188 | 0 |
+  | granite3.1-dense:2b | 30 | +0.006 | 0.097 | −0.056 | 23 |
+  | **ctf-custom-q4 (tuned)** | 60 | **−0.133** | **0.103** | −0.005 | **43** |
+  | **qwen2.5:3b (base)** | 60 | **−0.159** | **0.013** | −0.027 | **11** |
+
+- **FINDING — no transfer.** Tuned −0.133 vs base −0.159 is **+0.026**, inside the noise
+  floor (±0.09 at n=30 per 009b/c; these are n=60 so perhaps ±0.06). Both sit below
+  chance. As predicted: CTF replays teach shell-command selection, not social inference.
+- **FINDING — and the fine-tune actively cost protocol compliance.** Dead-player
+  references **43 vs 11** and invalid **0.103 vs 0.013** against its own base — roughly
+  eight times the roster-tracking failures and eight times the illegal moves, for no
+  detection gain. **A LoRA on out-of-domain replays degraded a capability it was never
+  aimed at.** This is the sharper version of the prediction and it echoes the CTF
+  project's own v5/v7 lesson, where replay loops reinforced the model's mistakes and had
+  to be rolled back.
+- **CAUTION — gemma3:1b tops this table at +0.202, and that number is not a model
+  property.** The same model across batches: −0.450 (002, void text contract), +0.085
+  (007), −0.033 (008), −0.212 (009a), **+0.202** (010). Excluding the void run that is a
+  **0.414 spread** at n=30–60. Its invalid here is 0.128 with 20 dead-player references.
+- **META-FINDING that qualifies every table in this log — det.lift is a property of a
+  model *in a field*, not of a model.** Roster composition moves a weak model's score more
+  than the model's own identity does, because detection depends on the evidence other
+  players generate. Cross-batch comparisons are therefore only safe through **shared
+  anchors at the same seed** (as in 009b/c), never by lifting a row out of one table and
+  putting it beside a row from another. Several readings earlier in this log came close to
+  that mistake.
+
 ## 011 — Isolate the context effect: one seat differs — READY (harness built)
 
 - **Why:** 008 could not attribute its own result. It switched every seat from ledger to
