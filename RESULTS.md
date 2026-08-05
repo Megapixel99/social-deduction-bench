@@ -527,3 +527,34 @@ Hardware for every run: Apple M1 Max, 64 GB, local Ollama. Raw logs in `results/
 - **What this does NOT establish:** nothing about frontier models. `gpt-oss:120b` is a
   large open model, not GPT-5 or Opus 5, so question 4 stays open and the caveat on every
   other table stands.
+
+### 012 pilot result — PIPELINE VALIDATED, numbers NOT a result
+
+6 games, seed 7, `--roster=scale-vs-control`. Town won 2 of 6.
+
+| model | tier | n | det.lift | decep. | consist | calib | invalid | lat.ms |
+|---|---|---|---|---|---|---|---|---|
+| nemotron-3-super | large-open | 6 | +0.633 | 0.816 | 1.000 | — | 0.143 | 16712 |
+| gpt-oss:20b | large-local | 6 | +0.043 | 0.674 | 1.000 | +0.100 | 0.000 | 4652 |
+| control | baseline | 12 | +0.026 | 0.000 | 0.923 | +0.258 | 0.000 | 0 |
+| gpt-oss:120b | large-open | 12 | −0.089 | 2.665 | 0.875 | +0.150 | 0.080 | 9079 |
+| qwen3:4b | mid-local | 6 | −0.121 | 0.000 | 1.000 | +0.063 | 0.032 | 3996 |
+
+- **DO NOT READ THIS AS A LEADERBOARD.** n is 6–12 accusations per model — precisely the
+  regime that produced +0.600/−0.378 in run 006 and then *reversed completely* at n=60 in
+  007. `nemotron-3-super` at +0.633 rests on **six** data points, and its invalid rate
+  (0.143) sits on the gate. Recording the table for provenance, not as a finding.
+- **What the pilot DID establish, which was its purpose:** the hosted-model path works
+  end to end. Zero API errors across 6 games; `gpt-oss:120b` invalid 0.080 at 9.1 s/call;
+  `nemotron` 0.143 at 16.7 s; both local seats clean. Nothing in the harness blocks a real
+  batch.
+- **Throughput for sizing one:** ~5 min/game, so 30 games ≈ 2.5 h and 60 games ≈ 5 h.
+- **The question it was built to answer is now runnable but unanswered.** gpt-oss:120b
+  (−0.089) scoring *below* gpt-oss:20b (+0.043) — 6× the parameters for no gain — is the
+  interesting hypothesis and is **entirely inside the noise** at these n. It needs 30+
+  games before it means anything. Note 20b's own +0.113 in 009b came from n=120.
+- **One observation the metrics do not capture, worth a look in the raw log:**
+  `gpt-oss:120b` claimed Detective and cited its actual investigation result in a public
+  statement — real hidden-information play, and the first genuinely competent Mafia
+  reasoning seen in this project. Whether that converts to detection lift is what the
+  larger batch would decide.
