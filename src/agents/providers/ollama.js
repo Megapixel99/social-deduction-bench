@@ -41,6 +41,30 @@ class OllamaAgent extends BaseAgent {
     return out;
   }
 
+  /**
+   * The value to send as Ollama's `think` parameter.
+   *
+   * `think: false` does NOT disable reasoning for gpt-oss — it appears to leave the
+   * default effort in place, and the tokens go to a harmony channel that the JSON
+   * schema does not constrain, so the model can exhaust any budget while its emitted
+   * JSON stays valid-but-absent. Measured on the largest real statement prompt in the
+   * logs:
+   *
+   *   think:false  budget 1200  -> done "length", 1200 tok, no JSON, 22.8s
+   *   think:false  budget 2500  -> done "length", 2500 tok, no JSON, 48.4s
+   *   think:"low"  budget 1200  -> done "stop",    142 tok, valid JSON,  6.3s
+   *   think:"low"  budget 2000  -> done "stop",    103 tok, valid JSON,  3.6s
+   *
+   * So the fix is an effort level, not a bigger cap — and it is 4-7x faster as well.
+   * This is the last of the three reasoning-model defects: the schema stopped reasoning
+   * from crowding out the decision in the visible channel, and this stops it running
+   * away in the hidden one.
+   */
+  reasoningMode() {
+    if (/^gpt-oss/i.test(this.model)) return 'low';
+    return false;
+  }
+
   async callModel(messages, { maxTokens, schema } = {}) {
     const maxAttempts = 2;
     let last = { text: '', thinking: '', tokensUsed: 0 };
@@ -53,7 +77,7 @@ class OllamaAgent extends BaseAgent {
           model: this.model,
           messages: payloadMessages,
           stream: false,
-          think: false,
+          think: this.reasoningMode(),
           keep_alive: '30m',
           // Ollama constrains decoding to this JSON schema. This is the fix for
           // reasoning models: the grammar cannot emit a document missing a required
