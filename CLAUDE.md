@@ -181,6 +181,20 @@ the pull, then defeated deliberately (`--mem-budget=5` must refuse; a real budge
 pass) — **a check that has not been defeated is a guess**, and this one had silently
 printed nothing when I first claimed it worked.
 
+**DEFECT 16 — the warm-up loaded every model at its NATIVE context, and that killed three
+batches.** `warmModel()` sent only `num_predict: 1` and omitted `num_ctx`, so Ollama loaded
+each model at its advertised context length and reserved a KV cache to match. `qwen3:4b` —
+a 2.5 GB model — went **42.3 GB resident**. Game calls did pass `num_ctx: 8192`, but the
+model was already resident with the oversized allocation, so the setting never took effect.
+Fixing the warm-up to send the same `num_ctx` as play took it to **4.1 GB**, a 10x
+reduction. This is the true root cause of runs 013 (killed at game 14/100), 013b (killed in
+game 1) and 014 (refused before starting), all of which looked like the machine being out
+of memory — and it also defeated DEFECT 15's guard from the other side: the estimate was
+right about the *weights* while the actual was 11x larger, because the allocation had
+nothing to do with file size. **Lesson: a warm-up that does not match the real request is
+not a warm-up, it is a second configuration that happens to be resident — and when two
+code paths configure the same resource, the one that runs FIRST wins.**
+
 **DEFECT 15 — the memory guard measured a proxy, passed, and the OS killed the run.** Same
 class as DEFECT 12 and worse for it. Preflight summed Ollama **file sizes** from
 `/api/tags`: a ten-model roster read 28.3 GB against a 40 GB budget and passed. Run 013

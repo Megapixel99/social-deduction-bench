@@ -271,6 +271,27 @@ const ROSTERS = {
   ],
 
   /**
+   * Memory-safe variant, and the only shape that survives a machine with no headroom.
+   *
+   * Runs 013 and 013b both died to the OS: measured mid-failure, the machine had **0.6 GB
+   * free and swap 93% full** from processes outside this project, so no local-model roster
+   * of any size was going to survive. HOSTED seats cost zero local memory, so this roster
+   * puts eight of ten seats on models that need none — one small local anchor and the
+   * control are the only local cost (~4 GB).
+   *
+   * The price is distinct models: **four, not ten**. What it buys is n. Over 100 games
+   * gpt-oss:120b reaches n~400 accusations and nemotron n~300 — far past the +/-0.09 noise
+   * floor, and enough to settle whether a large hosted model clears the control, which is
+   * the closest available proxy for open question 4 while the frontier accounts are unfunded.
+   */
+  'hosted-heavy': [
+    'gpt-oss-120b', 'gpt-oss-120b', 'gpt-oss-120b', 'gpt-oss-120b',
+    'nemotron', 'nemotron', 'nemotron',
+    'qwen3-4b',   // the one local seat: the anchor back to runs 007-011
+    'scripted', 'scripted',
+  ],
+
+  /**
    * gpt-oss:20b is deliberately NOT in `ten-model`: at ~14 GB resident it is more than
    * half the local budget on its own, and including it is what killed run 013 at game 14.
    * The 20B-vs-120B same-family comparison it enables belongs in its own small batch,

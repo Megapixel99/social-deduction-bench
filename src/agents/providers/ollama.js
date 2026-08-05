@@ -89,7 +89,7 @@ class OllamaAgent extends BaseAgent {
             // Small models need the window to cover the rendered ledger; too small
             // and the identity block silently falls out of context, which looks
             // exactly like the model ignoring its role.
-            num_ctx: 8192,
+            num_ctx: NUM_CTX,
           },
         },
         { headers: { 'Content-Type': 'application/json' }, timeout: 300000 }
@@ -144,7 +144,28 @@ async function checkHealth() {
   }
 }
 
-/** Load a model into memory before the game so turn one is not a cold start. */
+/** The context window every request uses. Must be identical in warm-up and play. */
+const NUM_CTX = 8192;
+
+/**
+ * Load a model into memory before the game so turn one is not a cold start.
+ *
+ * DEFECT 16 — the warm-up MUST send the same `num_ctx` the game will use. This function
+ * originally sent only `num_predict: 1`, so Ollama loaded each model at its **native**
+ * context length and reserved a KV cache to match. Measured: `qwen3:4b`, a 2.5 GB model,
+ * became **42.3 GB resident** — qwen3 advertises a very large window, and the warm-up was
+ * asking for all of it. Later game calls passed `num_ctx: 8192`, but the model was already
+ * resident with the oversized allocation, so the setting never took effect.
+ *
+ * That one omission killed three consecutive batches (013 at game 14, 013b in game 1, and
+ * 014 before it started) and made it look like the machine was out of memory. It also
+ * defeated the DEFECT 15 guard from the other side: the guard's *estimate* was right for
+ * the weights and the *actual* was 11x larger, because the allocation had nothing to do
+ * with file size.
+ *
+ * **Lesson: a warm-up that does not match the real request is not a warm-up — it is a
+ * different configuration that happens to be resident.**
+ */
 async function warmModel(modelName) {
   try {
     await axios.post(
@@ -154,7 +175,7 @@ async function warmModel(modelName) {
         messages: [{ role: 'user', content: 'hi' }],
         stream: false,
         keep_alive: '30m',
-        options: { num_predict: 1 },
+        options: { num_predict: 1, num_ctx: NUM_CTX },
       },
       { timeout: 300000 }
     );
@@ -164,4 +185,4 @@ async function warmModel(modelName) {
   }
 }
 
-module.exports = { OllamaAgent, pullModel, checkHealth, warmModel };
+module.exports = { OllamaAgent, pullModel, checkHealth, warmModel, NUM_CTX };

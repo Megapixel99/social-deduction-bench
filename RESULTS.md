@@ -573,7 +573,16 @@ Hardware for every run: Apple M1 Max, 64 GB, local Ollama. Raw logs in `results/
 - **Fixed, two stages:** estimate resident as `file x 1.5` before pulling, then **verify
   actual residency from `/api/ps` after warming** and refuse if over. On the new roster:
   estimated 24.2 GB, verified **17.5 GB** — the multiplier errs safe.
-- **Roster changed to fit, at a cost worth naming.** `gpt-oss:20b` is ~14 GB resident,
+- **ROOT CAUSE, found after two more failures — DEFECT 16, not memory pressure at all.**
+  013b died in game 1 and 014 refused to start, both with swap ~93% full, which looked like
+  the machine simply having no headroom. It was not. `warmModel()` omitted `num_ctx`, so
+  Ollama loaded each model at its **native** context length and reserved a matching KV
+  cache: `qwen3:4b`, 2.5 GB on disk, was **42.3 GB resident**. Adding `num_ctx: 8192` to
+  the warm-up took it to **4.1 GB**. One model in every roster was consuming the entire
+  budget, which is why shrinking the roster did not help — `qwen3:4b` was the anchor I had
+  insisted on keeping. **The full ten-model roster fits after the fix; nothing needed to be
+  given up.**
+- **Roster changed to fit, at a cost worth naming (SUPERSEDED by the fix above).** `gpt-oss:20b` is ~14 GB resident,
   over half the local budget, and its inclusion is what killed the run. Dropping it bought
   six distinct smaller models, so the batch still fields ten: gpt-oss:120b and nemotron
   (hosted, no local memory), llama3.1:8b, qwen3:4b, qwen2.5:3b, qwen3.5:2b,
