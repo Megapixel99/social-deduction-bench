@@ -167,7 +167,7 @@ Hardware for every run: Apple M1 Max, 64 GB, local Ollama. Raw logs in `results/
 - **Superseded by 007**, which reversed the ordering entirely — see below. Kept as the
   record of why 6 games is not enough.
 
-## 007 — Tier arm, 60 games, seed 7 — IN PROGRESS — 2026-08-04
+## 007 — Tier arm, 60 games, seed 7 — interim notes (superseded by the RESULT entry below)
 
 - **Why:** 006's ordering was noise and gpt-oss was confounded by truncation. Raise n
   with 005's fix in place.
@@ -196,7 +196,58 @@ Hardware for every run: Apple M1 Max, 64 GB, local Ollama. Raw logs in `results/
 - **Caveat:** qwen3.5:2b named a dead player 29 times and its invalid rate (0.149) sits
   right on the 0.15 gate, so its det.lift is the least trustworthy row.
 
-## 008 — `--context=full` vs `ledger`, paired — QUEUED
+## 007 — RESULT: tier arm, 60 games, seed 7 — the spread collapses
+
+- **Setup:** `--roster=local-tiers --games=60 --seed=7 --output=json`, with 005's
+  reasoning-effort fix in place. Seats: 2× gpt-oss:20b, 1× qwen3:4b, 1× qwen3.5:2b,
+  1× gemma3:1b, 2× rule-based control. Town won **13 of 60**.
+- **RESULT:**
+
+  | model | tier | n | det.lift | vote.lift | decep. | consist | calib | invalid |
+  |---|---|---|---|---|---|---|---|---|
+  | qwen3.5:2b | small-local | 60 | +0.167 | +0.025 | 1.067 | 0.667 | −0.050 | 0.147 |
+  | **control** | baseline | 120 | **+0.146** | +0.122 | 1.616 | 0.858 | **+0.148** | 0.000 |
+  | gpt-oss:20b | large-local | 120 | +0.108 | +0.120 | 1.766 | 0.901 | +0.040 | 0.013 |
+  | gemma3:1b | small-local | 60 | +0.085 | +0.106 | 0.781 | 0.705 | −0.013 | 0.136 |
+  | qwen3:4b | mid-local | 60 | +0.078 | +0.062 | 0.921 | 0.976 | −0.007 | 0.051 |
+
+- **FINDING — at adequate n the detection spread collapses to +0.078…+0.167.** Every
+  model and the control sit inside one tenth of a point. Compare the same roster and seed
+  at n=6 (006: +0.600 to −0.378) and n=8 (+0.137 to −0.400). **The dramatic orderings
+  were entirely sampling noise, and this is the cleanest demonstration of it the project
+  has** — same seed, same code, three batch sizes, three different "leaderboards", one
+  converged answer.
+- **FINDING — no model clearly beats the rule-based control on detection.** The best,
+  qwen3.5:2b at +0.167, leads the control by 0.021 — and the control's *own* score across
+  batches has been +0.293 / +0.133 / −0.114 / +0.125 / +0.146 on an unchanged policy. The
+  gap is far inside that. Nor is the size ordering meaningful: the 20B (+0.108) sits
+  between the 2B and the 4B.
+- **FINDING — calibration is the one metric that discriminates, and it has held its sign
+  at every batch size.** Control **+0.148**; gpt-oss:20b +0.040; qwen3:4b −0.007;
+  gemma3:1b −0.013; qwen3.5:2b −0.050. The models pick suspects about as well as a
+  bandwagon policy while their stated confidence carries **no information** — and two of
+  four are *inverted*, more confident when wrong. Consistent with 002 (n=12) and with
+  trainingResearch finding 12: next-token loss cannot separate fluent from correct.
+- **CAVEAT — qwen3.5:2b's top row is the least trustworthy.** invalid 0.147 sits on the
+  0.15 gate and it named a dead player **63 times**. gemma3:1b: 48 times (invalid 0.136);
+  qwen3:4b: 28; gpt-oss:20b: 9. Roster tracking scales with size cleanly even where
+  detection does not — the clearest size effect in the table.
+- **INTERPRETATION CAUTION — low `decep.` for small models is probably not skill.**
+  gemma3:1b draws the least suspicion (0.781) while gpt-oss:20b draws the most (1.766).
+  A model that says little of substance gives the room no grounds to suspect it, which
+  looks identical to being a good liar in this metric. Distinguishing the two needs a
+  statement-substance measure this repo does not have.
+- **Memory budget held:** per-model latency by quarter (g1-15 → g46-60) drifted only
+  2.8→3.6 s (gemma3:1b) and 4.8→5.2 s (gpt-oss:20b), with no step change, so no eviction
+  thrash. *(The ad-hoc quarter-by-quarter script globbed the last 60 game files across
+  all sessions, so two models from unrelated preflight test runs appeared in it; the
+  007 rows are unaffected.)*
+- **Limits:** one roster, one seed family, one player count. Town won only 22%, so the
+  deception-side numbers come from games that ended early. No frontier model has been
+  run, so it remains untested whether *anything* clears the control by a margin that
+  survives this noise floor — which is the check that validates every row above.
+
+## 008 — `--context=full` vs `ledger`, paired — RUNNING
 
 - **Why:** the only prediction in `RESEARCH.md` whose answer is useful either way
   (prediction 4). The ledger exists because trainingResearch finding 55 measured context
