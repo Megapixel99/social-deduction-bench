@@ -14,10 +14,10 @@ class HttpOpenAIShapedAgent extends BaseAgent {
     this.apiKey = apiKey;
   }
 
-  async callModel(messages) {
+  async callModel(messages, { maxTokens } = {}) {
     const response = await axios.post(
       `${this.baseUrl}/chat/completions`,
-      { model: this.model, messages, max_tokens: 1024, temperature: 0.8 },
+      { model: this.model, messages, max_tokens: maxTokens || 1024, temperature: 0.8 },
       {
         headers: {
           Authorization: `Bearer ${this.apiKey}`,

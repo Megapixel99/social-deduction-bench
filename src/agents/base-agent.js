@@ -1,6 +1,28 @@
 const { logApiCall, logAgentTurn } = require('../logger.js');
 
 /**
+ * Output token budget per request kind.
+ *
+ * A single global cap is wrong in both directions at once. Measured on
+ * gpt-oss:20b: a shared 1024-token cap was hit exactly on a day statement, cutting
+ * STATEMENT off mid-sentence — which would have scored a capable model as a poor
+ * speaker for a reason that had nothing to do with the model. The same 1024 spent on
+ * a night action, where the entire answer is a name plus a sentence of reasoning, is
+ * most of the wall-clock cost of a batch.
+ *
+ * So: decisions get a small budget, speech gets a large one.
+ */
+const MAX_TOKENS = {
+  statement: 1400,
+  mafia_chat: 600,
+  vote: 500,
+  night_kill: 500,
+  night_investigate: 500,
+  night_protect: 500,
+  default: 800,
+};
+
+/**
  * Base class for all player agents. Ported from the CTF project's base-agent and
  * kept deliberately close to it: subclasses implement only `callModel(messages)`
  * returning { text, thinking, tokensUsed }, and every provider quirk stays inside
@@ -38,6 +60,7 @@ class BaseAgent {
       calls: 0,
       apiErrors: 0,
       unparseable: 0,
+      truncated: 0,
       namedDeadPlayer: 0,
       namedUnknownPlayer: 0,
       namedSelfIllegally: 0,
@@ -47,7 +70,11 @@ class BaseAgent {
     };
   }
 
-  async callModel(messages) {
+  /**
+   * @param {Array} messages
+   * @param {{maxTokens: number}} opts
+   */
+  async callModel(messages, opts) {
     throw new Error('callModel() must be implemented by a provider subclass');
   }
 
@@ -69,10 +96,12 @@ class BaseAgent {
       { role: 'user', content: userPrompt },
     ];
 
+    const maxTokens = MAX_TOKENS[kind] ?? MAX_TOKENS.default;
+
     const started = Date.now();
     let response;
     try {
-      response = await this.callModel(messages);
+      response = await this.callModel(messages, { maxTokens });
     } catch (err) {
       this.stats.apiErrors++;
       const detail = err.message || String(err);
@@ -104,6 +133,12 @@ class BaseAgent {
     const fields = parseFields(response.text, expect, response.thinking);
     const missing = expect.filter((f) => f !== 'THINKING' && !fields[f]);
     if (missing.length) this.stats.unparseable++;
+
+    // A reply that stopped because it ran out of budget rather than because the model
+    // was finished is a truncation, not a bad answer. Counted separately so it can
+    // never be mistaken for one — if this is non-zero the budget above is wrong, and
+    // the affected model's speech-channel numbers are understated.
+    if (response.tokensUsed && response.truncated) this.stats.truncated++;
 
     logAgentTurn({
       player: this.playerName,
@@ -280,4 +315,4 @@ function truncate(str, max) {
   return str.length <= max ? str : str.slice(0, max) + '...';
 }
 
-module.exports = { BaseAgent, parseFields, matchName, truncate };
+module.exports = { BaseAgent, parseFields, matchName, truncate, MAX_TOKENS };

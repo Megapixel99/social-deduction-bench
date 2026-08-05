@@ -19,7 +19,7 @@ class OllamaCloudAgent extends BaseAgent {
     });
   }
 
-  async callModel(messages) {
+  async callModel(messages, { maxTokens } = {}) {
     const maxRetries = 3;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -28,7 +28,7 @@ class OllamaCloudAgent extends BaseAgent {
           model: this.model,
           messages,
           stream: false,
-          options: { temperature: 0.8, num_predict: 1024 },
+          options: { temperature: 0.8, num_predict: maxTokens || 1024 },
         });
 
         return {

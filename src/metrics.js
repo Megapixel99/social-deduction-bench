@@ -196,6 +196,10 @@ function computeMetrics(snapshot, agentSummaries) {
       calls: a.calls,
       apiErrorRate: round(a.apiErrors / total),
       unparseableRate: round(a.unparseable / total),
+      // Replies cut off by the token budget rather than finished by the model.
+      // Non-zero means MAX_TOKENS in base-agent.js is too tight for this model and
+      // its speech-channel results are understated.
+      truncatedRate: round((a.truncated || 0) / total),
       namedDeadPlayer: a.namedDeadPlayer,
       namedUnknownPlayer: a.namedUnknownPlayer,
       namedSelfIllegally: a.namedSelfIllegally,
@@ -280,6 +284,7 @@ function aggregate(gameMetrics) {
         unparseable: 0,
         apiErrors: 0,
         namedDeadPlayer: 0,
+        truncated: 0,
         latencySum: 0,
         tokens: 0,
       });
@@ -322,6 +327,7 @@ function aggregate(gameMetrics) {
         m.unparseable += Math.round(pr.unparseableRate * pr.calls);
         m.apiErrors += Math.round(pr.apiErrorRate * pr.calls);
         m.namedDeadPlayer += pr.namedDeadPlayer;
+        m.truncated += Math.round((pr.truncatedRate || 0) * pr.calls);
         m.latencySum += pr.avgLatencyMs * pr.calls;
         m.tokens += pr.totalTokens;
       }
@@ -360,6 +366,7 @@ function aggregate(gameMetrics) {
       unparseableRate: rate(m.unparseable, m.calls),
       apiErrorRate: rate(m.apiErrors, m.calls),
       namedDeadPlayer: m.namedDeadPlayer,
+      truncatedRate: rate(m.truncated, m.calls),
       avgLatencyMs: m.calls ? Math.round(m.latencySum / m.calls) : 0,
       totalTokens: m.tokens,
     };
@@ -403,6 +410,18 @@ function formatLeaderboard(rows) {
         String(r.avgLatencyMs).padStart(8),
       ].join(' ')
     );
+  }
+
+  const flagged = rows.filter((r) => (r.truncatedRate || 0) > 0 || r.namedDeadPlayer > 0);
+  if (flagged.length) {
+    lines.push('');
+    lines.push('State-tracking and truncation:');
+    for (const r of flagged) {
+      const bits = [];
+      if (r.namedDeadPlayer > 0) bits.push(`named a dead player ${r.namedDeadPlayer}x`);
+      if ((r.truncatedRate || 0) > 0) bits.push(`${(r.truncatedRate * 100).toFixed(0)}% of replies hit the token cap`);
+      lines.push(`  ${String(r.model).padEnd(26)} ${bits.join(', ')}`);
+    }
   }
 
   lines.push('');

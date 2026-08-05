@@ -15,11 +15,11 @@ class OpenAIAgent extends BaseAgent {
     this.client = new OpenAI({ apiKey: CONFIG.api.openai.apiKey });
   }
 
-  async callModel(messages) {
+  async callModel(messages, { maxTokens } = {}) {
     const response = await this.client.chat.completions.create({
       model: this.model,
       messages,
-      max_tokens: 1024,
+      max_tokens: maxTokens || 1024,
       temperature: 0.8,
     });
 

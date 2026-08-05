@@ -45,12 +45,35 @@ const MODELS = {
   nemotron:   { provider: 'ollama-cloud', model: process.env.CLOUD_MODEL_4 || 'nemotron-3-super:cloud',          tier: 'large-open' },
   rnj:        { provider: 'ollama-cloud', model: process.env.CLOUD_MODEL_5 || 'rnj-1:8b-cloud',                  tier: 'large-open' },
 
-  // --- small models, served locally by Ollama ---
+  // --- small models, served locally by Ollama (all resident; ~8 GB for the five) ---
   qwen:       { provider: 'ollama', model: process.env.OLLAMA_SMALL_MODEL   || 'qwen3.5:2b',            tier: 'small-local' },
   gemma:      { provider: 'ollama', model: process.env.OLLAMA_SMALL_MODEL_2 || 'gemma3:1b',             tier: 'small-local' },
   llama:      { provider: 'ollama', model: process.env.OLLAMA_SMALL_MODEL_3 || 'llama3.2:1b',          tier: 'small-local' },
   smollm:     { provider: 'ollama', model: process.env.OLLAMA_SMALL_MODEL_4 || 'smollm2:1.7b',         tier: 'small-local' },
   granite:    { provider: 'ollama', model: process.env.OLLAMA_SMALL_MODEL_5 || 'granite3.1-dense:2b',  tier: 'small-local' },
+
+  // --- mid-size, still comfortably resident locally ---
+  'qwen3-4b': { provider: 'ollama', model: 'qwen3:4b',    tier: 'mid-local' },
+  'gemma4-e4b': { provider: 'ollama', model: 'gemma4:e4b', tier: 'mid-local' },
+
+  /**
+   * Large open model, resident locally. 13.8 GB of weights — it fits in this
+   * machine's memory without any streaming, which makes it the cheap way to get a
+   * `large-local` arm and the correct control for Swiftlet: if a resident 20B and a
+   * streamed 35B score the same, the streaming architecture bought nothing for this
+   * task and only the parameter count mattered.
+   */
+  'gpt-oss-20b': { provider: 'ollama', model: 'gpt-oss:20b', tier: 'large-local' },
+
+  /**
+   * The CTF project's own fine-tune: Qwen2.5-3B + LoRA on tournament replays,
+   * quantised to Q4_K_M. Seated here untouched — it was trained on capture-the-flag
+   * transcripts, not Mafia, so it tests transfer rather than skill. If it beats
+   * stock 2-3B models at social deduction, that is a finding about what replay
+   * fine-tuning generalises to; if it does not, that is the more likely and equally
+   * reportable result.
+   */
+  'ctf-bot': { provider: 'ollama', model: 'ctf-custom-q4:latest', tier: 'small-local-tuned' },
 
   /**
    * Large MoE models running locally through Swiftlet's OpenAI-compatible server
@@ -112,8 +135,23 @@ const ROSTERS = {
   /** Small models plus the rule-based baseline, to separate skill from format. */
   'local-vs-baseline': ['qwen', 'gemma', 'llama', 'smollm', 'granite', 'scripted', 'scripted'],
 
-  /** Local-only field spanning both local tiers. Needs a running Swiftlet server. */
-  swiftlet: ['swiftlet-35b', 'swiftlet-35b', 'qwen', 'gemma', 'llama', 'granite', 'scripted'],
+  /**
+   * The fully-local headline experiment: three size tiers plus the control on one
+   * board, no API keys and no network. This is the roster that actually answers "how
+   * big does a local model need to be to play social deduction" — a small-vs-small
+   * field would only show they are bad at it together, which is a much weaker claim.
+   */
+  'local-tiers': ['gpt-oss-20b', 'gpt-oss-20b', 'qwen3-4b', 'qwen3-4b', 'qwen', 'gemma', 'scripted'],
+
+  /** Does CTF-replay fine-tuning transfer to a different social task? */
+  'ctf-transfer': ['ctf-bot', 'ctf-bot', 'qwen', 'qwen3-4b', 'gemma', 'granite', 'scripted'],
+
+  /**
+   * Local-only field spanning the resident and streamed large tiers. Needs a running
+   * Swiftlet server on port 8080 in addition to Ollama; gpt-oss-20b is seated beside
+   * it deliberately, as the resident-vs-streamed comparison.
+   */
+  swiftlet: ['swiftlet-35b', 'swiftlet-35b', 'gpt-oss-20b', 'qwen3-4b', 'qwen', 'gemma', 'scripted'],
 };
 
 /**

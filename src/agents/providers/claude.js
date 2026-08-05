@@ -13,7 +13,7 @@ class ClaudeAgent extends BaseAgent {
     this.client = new Anthropic({ apiKey: CONFIG.api.claude.apiKey });
   }
 
-  async callModel(messages) {
+  async callModel(messages, { maxTokens } = {}) {
     const system = messages.find((m) => m.role === 'system')?.content || '';
 
     const merged = [];
@@ -28,7 +28,7 @@ class ClaudeAgent extends BaseAgent {
 
     const response = await this.client.messages.create({
       model: this.model,
-      max_tokens: 1024,
+      max_tokens: maxTokens || 1024,
       temperature: 0.8,
       system,
       messages: merged,

@@ -15,7 +15,7 @@ class GeminiAgent extends BaseAgent {
     this.genAI = new GoogleGenerativeAI(CONFIG.api.gemini.apiKey);
   }
 
-  async callModel(messages) {
+  async callModel(messages, { maxTokens } = {}) {
     const systemInstruction = messages.find((m) => m.role === 'system')?.content || '';
     const userText = messages
       .filter((m) => m.role !== 'system')
@@ -25,7 +25,7 @@ class GeminiAgent extends BaseAgent {
     const model = this.genAI.getGenerativeModel({
       model: this.model,
       systemInstruction,
-      generationConfig: { maxOutputTokens: 1024, temperature: 0.8 },
+      generationConfig: { maxOutputTokens: maxTokens || 1024, temperature: 0.8 },
     });
 
     const result = await model.generateContent(userText);

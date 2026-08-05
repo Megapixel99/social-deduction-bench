@@ -19,7 +19,7 @@ class OllamaAgent extends BaseAgent {
     this.baseUrl = CONFIG.api.ollama.baseUrl;
   }
 
-  async callModel(messages) {
+  async callModel(messages, { maxTokens } = {}) {
     const maxAttempts = 2;
     let last = { text: '', thinking: '', tokensUsed: 0 };
 
@@ -34,7 +34,7 @@ class OllamaAgent extends BaseAgent {
           keep_alive: '30m',
           options: {
             temperature: 0.8,
-            num_predict: 1024,
+            num_predict: maxTokens || 1024,
             // Small models need the window to cover the rendered ledger; too small
             // and the identity block silently falls out of context, which looks
             // exactly like the model ignoring its role.
@@ -49,6 +49,10 @@ class OllamaAgent extends BaseAgent {
         text: data.message?.content || '',
         thinking: '',
         tokensUsed: (data.prompt_eval_count || 0) + (data.eval_count || 0),
+        // Ollama reports why generation stopped. "length" means the budget ran out
+        // mid-sentence, which is a different result from a short answer and is
+        // counted separately rather than scored as poor writing.
+        truncated: data.done_reason === 'length',
       };
       if (last.text.trim()) return last;
     }
