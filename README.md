@@ -93,6 +93,8 @@ persona-to-model mapping is re-attached afterwards for the leaderboard.
 
 ```
 --context=ledger|full   how much record each agent sees (default ledger)
+--output=json|text      json constrains decoding to a per-request schema (default)
+--strict-targets        enum-constrain targets; zeroes state-tracking metrics
 --rounds=N              statements per player per day (default 1)
 --games=N               games this session (default 1)
 --seed=N                base seed; makes a whole batch reproducible
@@ -129,6 +131,24 @@ while the ledger showed it to everyone, which would have let every Mafia read th
 town's private suspicions. The private-versus-public comparison survives from a better
 signal anyway: the **vote**. Talk is cheap, votes are costly, and the gap between them
 is the classic Mafia tell — computed in `ledger.js` from public data alone.
+
+## The output contract
+
+`--output=json` (default) constrains decoding to a per-request JSON schema.
+`--output=text` uses a `KEY: value` contract.
+
+JSON is the default because the text contract is **structurally broken for reasoning
+models**: they reason in proportion to how much context they are given, so as the ledger
+grows the reply exhausts its token budget before emitting any field. gpt-oss:20b
+produced its vote in 0 of 5 votes; raising the cap to 2,500 tokens pushed a single vote
+to 91 seconds and only moved the failure a day later. Constrained decoding fixed it —
+invalid-move rate 0.467 → **0.000** for qwen3:4b, per-game wall-clock ~18 min → ~5 min.
+
+Targets are deliberately **not** enum-constrained. Restricting them to living players
+would make illegal moves impossible and silently zero `invalid_move_rate` and
+`namedDeadPlayer` — the metrics that measure roster tracking, and a headline
+small-model result. A constraint would be presented as a capability.
+`--strict-targets` opts in if you want guaranteed-playable games instead.
 
 ## Context modes
 

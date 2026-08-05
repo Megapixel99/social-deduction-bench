@@ -223,7 +223,59 @@ granite3.1-dense:2b as Mafia wrote *"bring us closer to our goal of outnumbering
 remaining town members"* in a **public** day statement — night-channel reasoning
 leaked into speech. Both argue for a character-break counter.
 
-## 5c. NOT ESTABLISHED — the larger local tier
+## 5c. FIXED — the output contract, and what the larger local tier now shows
+
+**The contract was the blocker, and it is fixed.** The `KEY: value` text contract is
+structurally broken for reasoning models: they reason in proportion to context, so as
+the ledger grows the reply exhausts its budget before emitting any field. Three
+attempts to patch it around the edges (per-kind budgets, Qwen3's `/no_think`,
+decision-first ordering) each helped and none was sufficient.
+
+Schema-constrained decoding fixes it at the grammar level — a schema cannot emit a
+document that lacks a required property, so reasoning is unable to crowd the decision
+out. Invalid-move rate, same roster and seed, text contract vs `--output=json`:
+
+| model | invalid (text) | invalid (schema) | latency |
+|---|---|---|---|
+| qwen3:4b | 0.467 | **0.000** | 16.5s → **4.6s** |
+| gpt-oss:20b | 0.474 → 0.292 | **0.143** | 91s (vote) → 20s |
+| gemma3:1b | 0.509 | **0.192** | 2.7s |
+| qwen3.5:2b | 0.115 | **0.080** | 4.3s |
+
+Wall-clock per game fell from ~18 minutes to ~5. Truncation on gpt-oss:20b dropped from
+54% to 29% but is **not** gone: its reasoning goes to a harmony channel that the schema
+does not constrain, so it can still overrun a budget while the emitted JSON is valid.
+That is the remaining known defect in this integration.
+
+Verified against exp 015's warning that grammar-constrained decoding "yields degenerate
+loops instead of syntax errors." No degeneracy at any size. That result concerned
+character-level masking of a weak from-scratch LM whose distribution was nowhere near
+valid; these are instruction-tuned models emitting a few short fields.
+
+### The tier numbers themselves are still not conclusive
+
+Six games, `local-tiers`, seed 7, `--output=json`. Town won 1 of 6.
+
+| model | tier | n | det.lift | invalid | lat |
+|---|---|---|---|---|---|
+| qwen3:4b | mid-local | 6 | +0.600 | 0.000 | 4.6s |
+| rule-based control | baseline | 12 | −0.114 | 0.000 | 0s |
+| gemma3:1b | small-local | 6 | −0.200 | 0.192 | 2.6s |
+| gpt-oss:20b | large-local | 12 | −0.378 | 0.143 | 19.6s |
+| qwen3.5:2b | small-local | 6 | −0.400 | 0.080 | 4.3s |
+
+**Do not read these as a leaderboard.** n is 6–12 accusations per model, so qwen3:4b's
++0.600 rests on six data points and gpt-oss:20b's −0.378 on twelve. The control itself
+scored −0.114 here against +0.133 over 12 games in 5b — the same policy, so that spread
+is pure sampling noise and it is larger than most of the gaps in this table.
+
+What the run *does* establish: **every model now makes legal, parseable moves**, so the
+harness is no longer the limiting factor and a batch large enough to separate these
+models is now merely a matter of runtime. The counter-intuitive ordering (a 20B below a
+4B below chance) is exactly the kind of result that needs n in the hundreds before it
+means anything, and gpt-oss:20b's 29% residual truncation is a live confound against it.
+
+## 5d. Superseded — why the tier arm previously produced nothing
 
 The `local-tiers` arm (gpt-oss:20b resident, qwen3:4b) **did not produce usable data**
 and is recorded here as unfinished rather than reported.
@@ -235,14 +287,15 @@ field ordering — gpt-oss:20b still hit the token cap on 54% of replies and qwe
 6/18 → 9/13, vote latency 91 s → 21 s), but "help" is not "clean", and at n=2 games
 the resulting det.lift of −0.333 on four accusations is noise.
 
-**What this actually shows is a harness limitation, not a model limitation.** A
-free-text `KEY: value` contract is the wrong integration for a reasoning model. The
-fix is one of: a constrained/JSON output mode so the decision cannot be crowded out;
-separate calls for decision and speech; or non-reasoning models in these seats. Until
-one of those is done, this repo has no measurement of whether a larger *local* model
-clears the control — which is the most interesting open question in it, and the reason
-Swiftlet's 35B was not worth an 18 GB download yet: the 20B seat would have hit the
-same wall.
+**This was a harness limitation, not a model limitation** — now fixed by the schema
+contract above (5c). Kept as the record of how it was diagnosed: the useful part is
+that three plausible patches each improved the symptom without addressing the cause,
+and the cause only became visible once truncation was counted separately from bad
+answers.
+
+It also justifies having deferred Swiftlet's 18 GB download: the resident 20B seat hit
+this wall first, so the streamed 35B would have bought the same failure more slowly.
+With the contract fixed, that download is now worth making.
 
 ## 6. Falsifiable predictions
 
