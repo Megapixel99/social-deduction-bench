@@ -164,6 +164,16 @@ runs at module load, so an unknown model name crashed before anything printed �
 including the help text someone reaches for *after* mistyping a name. Captured into
 `CONFIG.configError` and reported by `index.js`.
 
+**DEFECT 12 — a roster that would not fit memory, and no check for it.** The `ladder`
+roster seated gpt-oss:20b and mistral-small:24b together: ~39 GB of resident weights
+against a ~40 GB practical budget on a machine also doing other work. Nothing would have
+errored — Ollama would have evicted and reloaded between turns, and the latency column
+would have quietly measured disk speed. I had even written that I would "watch `lat.ms`
+for step changes", which is monitoring for a problem instead of preventing one. Fixed by
+a preflight sum against `--mem-budget`, and by splitting the ladder into anchored
+batches. **Lesson: if the failure mode is silent data corruption, a preflight refusal
+beats a note-to-self to look for it later.**
+
 **DEFECT 11 — contradictory format instructions (caught before shipping).** With JSON
 mode added, prompts still said "reply with these lines and nothing else" while the
 decoder was constrained to JSON. `formatRules(view)` now states the contract actually in
@@ -189,6 +199,30 @@ each batch was for.
 
 Hardware these results were measured on: Apple M1 Max, 64 GB. Throughput, not quality,
 is the constraint on batch size: ~90–110 s/game for the `local-tiers` roster.
+
+### Memory budget (DEFECT 12)
+
+The machine has 64 GB but runs other work, so the **batch budget is ~40 GB of resident
+model weights**, not 64. Over budget, Ollama evicts and reloads models between turns and
+the `lat.ms` column silently becomes a measure of disk throughput rather than of the
+model — invisible in the results table and expensive to discover after a multi-hour run.
+
+`preflight()` in `src/index.js` sums the real sizes from Ollama's `/api/tags` and refuses
+to start over `--mem-budget` (default 40). Current rosters:
+
+| roster | resident weights |
+|---|---|
+| `ctf-transfer` | ~6.2 GB |
+| `ladder-small` | ~12.5 GB |
+| `local-tiers` | ~19.8 GB |
+| `ladder-gptoss` | ~23.9 GB |
+| `ladder-mistral` | ~24.4 GB |
+
+**When a comparison needs two large models, do not seat them together.** The original
+`ladder` held gpt-oss:20b *and* mistral-small:24b — ~39 GB, over budget. It is now split
+into three batches that share `llama3.1-8b` and `qwen3-4b` as **anchors at the same
+seed**, so the large models are comparable *through* the anchors (a common-reference
+design) without ever being co-resident.
 
 ## Open questions
 

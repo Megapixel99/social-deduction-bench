@@ -46,6 +46,26 @@ async function preflight() {
       process.exit(1);
     }
     for (const m of localModels) await pullModel(m);
+
+    // Resident-weight check. Over budget, Ollama evicts and reloads between turns and
+    // the latency column stops measuring the model — a silent data-quality failure that
+    // is much cheaper to catch here than to spot afterwards in a finished batch.
+    const sizes = await modelSizesGb(localModels);
+    const totalGb = Object.values(sizes).reduce((a, b) => a + b, 0);
+    const budget = CONFIG.game.memBudgetGb;
+    console.log(`[Ollama] Resident weights: ${totalGb.toFixed(1)} GB across ${localModels.length} model(s), budget ${budget} GB`);
+    if (totalGb > budget) {
+      console.error(`\n[ERROR] This roster needs ${totalGb.toFixed(1)} GB of resident weights, over the ${budget} GB budget:`);
+      for (const [m, gb] of Object.entries(sizes).sort((a, b) => b[1] - a[1])) {
+        console.error(`  ${gb.toFixed(1).padStart(6)} GB  ${m}`);
+      }
+      console.error('\nOllama would evict and reload models between turns, making the latency');
+      console.error('column a measure of disk throughput rather than of the models. Either split');
+      console.error('the roster (see ladder-small / ladder-gptoss / ladder-mistral in config.js)');
+      console.error(`or raise the ceiling explicitly with --mem-budget=${Math.ceil(totalGb)}.`);
+      process.exit(1);
+    }
+
     console.log(`[Ollama] Warming ${localModels.length} model(s)...`);
     for (const m of localModels) await warmModel(m);
   }
@@ -56,6 +76,25 @@ async function preflight() {
     console.log(`[Local server] Expecting an OpenAI-compatible server at ${url}`);
     console.log('  (Swiftlet:  swiftlet-server --model ~/models/qwen3.6-35b.qpack --port 8080)');
   }
+}
+
+/** Weight size in GB per model name, from Ollama's own catalogue. */
+async function modelSizesGb(names) {
+  const axios = require('axios');
+  const out = {};
+  try {
+    const resp = await axios.get(`${CONFIG.api.ollama.baseUrl}/api/tags`, { timeout: 8000 });
+    const byName = {};
+    for (const m of resp.data.models || []) byName[m.name] = m.size;
+    for (const n of names) {
+      const hit = byName[n] ?? byName[`${n}:latest`];
+      out[n] = hit ? hit / 1e9 : 0;
+    }
+  } catch {
+    // Catalogue unreachable: report zeroes rather than blocking the run on a check.
+    for (const n of names) out[n] = 0;
+  }
+  return out;
 }
 
 async function playOneGame(gameNumber, seedValue) {
@@ -188,6 +227,8 @@ Game options:
                          reasoning models). text uses the KEY: value contract.
   --strict-targets       enum-constrain targets to living players. Guarantees legal
                          moves but zeroes the state-tracking metrics.
+  --mem-budget=GB        ceiling on total resident model weights (default 40). Over it,
+                         Ollama thrashes and latency stops measuring the model.
   --rounds=N             statements per player per day (default 1)
   --games=N              games to play in this session (default 1)
   --loop                 keep starting new batches until interrupted

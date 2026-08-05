@@ -188,13 +188,26 @@ const ROSTERS = {
    * local and all resident. This is the roster that answers "how big does a local model
    * need to be", which no single-tier field can.
    */
-  ladder: ['gemma', 'qwen', 'qwen3-4b', 'llama3.1-8b', 'gpt-oss-20b', 'mistral-small-24b', 'scripted'],
+  /**
+   * The ladder is deliberately SPLIT across three batches instead of seating every size
+   * at once. All six sizes together is ~39 GB of resident weights, which does not fit
+   * the batch memory budget on a machine that is also doing other work.
+   *
+   * `llama3.1-8b` and `qwen3-4b` appear in all three as shared anchors, at the same
+   * seed. That makes the large models comparable to each other *through* the anchors
+   * (a common-reference design) without ever holding both 20B+ models in memory
+   * simultaneously — which is the comparison `reasoning-vs-not` wanted and could not
+   * afford directly.
+   */
+  'ladder-small': ['gemma', 'qwen', 'granite-2b', 'qwen3-4b', 'llama3.1-8b', 'scripted', 'scripted'],
+  'ladder-gptoss': ['gpt-oss-20b', 'gpt-oss-20b', 'llama3.1-8b', 'qwen3-4b', 'qwen', 'scripted', 'scripted'],
+  'ladder-mistral': ['mistral-small-24b', 'mistral-small-24b', 'llama3.1-8b', 'qwen3-4b', 'qwen', 'scripted', 'scripted'],
 
   /**
    * Reasoning vs non-reasoning at matched scale, since the reasoning models needed a
    * different integration and that may cost or buy them something at play time too.
    */
-  'reasoning-vs-not': ['gpt-oss-20b', 'mistral-small-24b', 'qwen3-4b', 'gemma3-4b', 'phi4-mini', 'llama3.2-3b', 'scripted'],
+  'reasoning-vs-not': ['qwen3-4b', 'qwen3-4b', 'gemma3-4b', 'gemma3-4b', 'phi4-mini', 'llama3.2-3b', 'scripted'],
 
   /** Eight distinct mid-size models, one seat each — widest single-batch coverage. */
   wide: ['qwen2.5-3b', 'llama3.2-3b', 'gemma3-4b', 'granite-2b', 'exaone-2.4b', 'qwen3-4b', 'nemotron-4b', 'scripted'],
@@ -300,6 +313,14 @@ const CONFIG = {
     outputMode: opt('output', process.env.OUTPUT_MODE || 'json'),
     /** Enum-constrain targets to living players. Off: it zeroes state-tracking metrics. */
     strictTargets: flag('strict-targets') || process.env.STRICT_TARGETS === 'true',
+    /**
+     * Ceiling on total resident model weights, in GB. This machine has 64 GB but runs
+     * other work, so the batch budget is smaller than the hardware. Exceeding it does
+     * not fail loudly — Ollama starts evicting and reloading models between turns, and
+     * the latency column becomes a measure of disk throughput rather than of the model.
+     * That is a silent data-quality failure, so preflight checks it.
+     */
+    memBudgetGb: parseFloat(opt('mem-budget', process.env.MEM_BUDGET_GB || '40')),
     discussionRounds: parseInt(opt('rounds', process.env.DISCUSSION_ROUNDS || '1'), 10),
     maxDays: parseInt(opt('max-days', process.env.MAX_DAYS || '12'), 10),
     revealRoleOnDeath: (process.env.REVEAL_ROLE_ON_DEATH || 'true') !== 'false' && !flag('no-reveal'),
