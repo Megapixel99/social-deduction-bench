@@ -54,24 +54,40 @@ async function preflight() {
     // times out under load and falls through to a real pull with a 3600s timeout. A
     // guard that only works on an idle machine is not a guard.
     const sizes = await modelSizesGb(localModels);
-    const totalGb = Object.values(sizes).reduce((a, b) => a + b, 0);
+    const fileGb = Object.values(sizes).reduce((a, b) => a + b, 0);
+    const estGb = fileGb * RESIDENT_OVERHEAD;
     const budget = CONFIG.game.memBudgetGb;
-    console.log(`[Ollama] Resident weights: ${totalGb.toFixed(1)} GB across ${localModels.length} model(s), budget ${budget} GB`);
-    if (totalGb > budget) {
-      console.error(`\n[ERROR] This roster needs ${totalGb.toFixed(1)} GB of resident weights, over the ${budget} GB budget:`);
+    console.log(
+      `[Ollama] ${localModels.length} model(s): ${fileGb.toFixed(1)} GB on disk, ` +
+        `~${estGb.toFixed(1)} GB estimated resident (x${RESIDENT_OVERHEAD}), budget ${budget} GB`
+    );
+    if (estGb > budget) {
+      console.error(`\n[ERROR] Estimated resident footprint ${estGb.toFixed(1)} GB exceeds the ${budget} GB budget:`);
       for (const [m, gb] of Object.entries(sizes).sort((a, b) => b[1] - a[1])) {
-        console.error(`  ${gb.toFixed(1).padStart(6)} GB  ${m}`);
+        console.error(`  ${(gb * RESIDENT_OVERHEAD).toFixed(1).padStart(6)} GB  ${m} (${gb.toFixed(1)} GB on disk)`);
       }
-      console.error('\nOllama would evict and reload models between turns, making the latency');
-      console.error('column a measure of disk throughput rather than of the models. Either split');
-      console.error('the roster (see ladder-small / ladder-gptoss / ladder-mistral in config.js)');
-      console.error(`or raise the ceiling explicitly with --mem-budget=${Math.ceil(totalGb)}.`);
+      console.error('\nOver budget the OS swaps or kills the run outright — this batch died at');
+      console.error('game 14 of 100 that way. Drop a large model, use hosted seats (they cost no');
+      console.error(`local memory), or raise the ceiling with --mem-budget=${Math.ceil(estGb)}.`);
       process.exit(1);
     }
 
     for (const m of localModels) await pullModel(m);
     console.log(`[Ollama] Warming ${localModels.length} model(s)...`);
     for (const m of localModels) await warmModel(m);
+
+    // Second stage: verify the ESTIMATE against reality. An estimate that is wrong in
+    // the same direction as the last one would kill another batch, so assert the actual
+    // number rather than trusting the multiplier.
+    const actualGb = await residentGb();
+    if (actualGb > 0) {
+      console.log(`[Ollama] Verified resident: ${actualGb.toFixed(1)} GB (estimated ${estGb.toFixed(1)} GB)`);
+      if (actualGb > budget) {
+        console.error(`\n[ERROR] Actual resident footprint ${actualGb.toFixed(1)} GB exceeds the ${budget} GB budget.`);
+        console.error('The estimate was optimistic. Reduce the roster before running a long batch.');
+        process.exit(1);
+      }
+    }
   }
 
   const swiftletSeats = CONFIG.seats.filter((s) => s.provider === 'openai-compatible');
@@ -81,6 +97,25 @@ async function preflight() {
     console.log('  (Swiftlet:  swiftlet-server --model ~/models/qwen3.6-35b.qpack --port 8080)');
   }
 }
+
+/**
+ * Ratio of a model's RESIDENT footprint to its file size on disk.
+ *
+ * DEFECT 15. Preflight originally summed file sizes from `/api/tags` and compared that
+ * to the budget. A ten-model roster measured 28.3 GB and passed — then the OS killed
+ * the run at game 14 of 100 with swap at 19.5 of 20 GB. Measured from `/api/ps` after
+ * the fact, real residency runs 1.34x to 1.56x the file size, because the file does not
+ * include the KV cache or context buffers that `num_ctx: 8192` allocates per model:
+ *
+ *   qwen2.5:3b    file 1.93 GB -> resident 2.54 GB  (1.32x)
+ *   qwen3.5:2b    file 2.74 GB -> resident 4.22 GB  (1.54x)
+ *   gpt-oss:20b   file 13.79 GB -> resident 14.22 GB (1.03x, big weights dominate)
+ *
+ * 1.5 is the conservative end of that range. The guard now estimates with it up front
+ * AND verifies actual residency from `/api/ps` after warming — an estimate can be wrong,
+ * so the second stage asserts the thing that actually matters.
+ */
+const RESIDENT_OVERHEAD = 1.5;
 
 /** Weight size in GB per model name, from Ollama's own catalogue. */
 async function modelSizesGb(names) {
@@ -99,6 +134,17 @@ async function modelSizesGb(names) {
     for (const n of names) out[n] = 0;
   }
   return out;
+}
+
+/** Actual resident GB of every currently-loaded Ollama model, from /api/ps. */
+async function residentGb() {
+  const axios = require('axios');
+  try {
+    const resp = await axios.get(`${CONFIG.api.ollama.baseUrl}/api/ps`, { timeout: 8000 });
+    return (resp.data.models || []).reduce((a, m) => a + (m.size || 0), 0) / 1e9;
+  } catch {
+    return 0;
+  }
 }
 
 async function playOneGame(gameNumber, seedValue) {

@@ -181,6 +181,21 @@ the pull, then defeated deliberately (`--mem-budget=5` must refuse; a real budge
 pass) — **a check that has not been defeated is a guess**, and this one had silently
 printed nothing when I first claimed it worked.
 
+**DEFECT 15 — the memory guard measured a proxy, passed, and the OS killed the run.** Same
+class as DEFECT 12 and worse for it. Preflight summed Ollama **file sizes** from
+`/api/tags`: a ten-model roster read 28.3 GB against a 40 GB budget and passed. Run 013
+then died at **game 14 of 100** with no error and no stack trace — swap at 19.5 of 20 GB,
+7.8M swapouts, process killed. Measured afterwards from `/api/ps`, real residency is
+**1.3-1.6x file size**, because the file excludes the KV cache and context buffers
+`num_ctx: 8192` allocates per model (qwen3.5:2b: 2.74 GB on disk, **4.22 GB** resident).
+Fixed in two stages: estimate with a 1.5x multiplier before pulling, then **verify actual
+residency from `/api/ps` after warming** and refuse if over. **Lesson: DEFECT 12 fixed the
+ordering of the guard but never questioned whether it measured the right quantity. A guard
+on a proxy fails silently in exactly the direction that hurts — and "it passed" is not
+evidence when the thing it measured is not the thing that runs out.** Corollary:
+`gpt-oss:20b` alone is ~14 GB resident, over half the local budget, so it is excluded from
+`ten-model` and lives in its own small roster.
+
 **DEFECT 14 — a ported adapter sent a parameter that is now a hard error.** The Claude
 adapter carried `temperature: 0.8` over from the CTF project. Sampling parameters
 (`temperature`, `top_p`, `top_k`) are **rejected with a 400 on every current Claude

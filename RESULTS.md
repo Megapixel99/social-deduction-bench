@@ -558,3 +558,25 @@ Hardware for every run: Apple M1 Max, 64 GB, local Ollama. Raw logs in `results/
   statement — real hidden-information play, and the first genuinely competent Mafia
   reasoning seen in this project. Whether that converts to detection lift is what the
   larger batch would decide.
+
+## 013 — 100-game ten-model batch — KILLED at 14/100, relaunched — 2026-08-05
+
+- **Why:** a long, fully documented batch with ten models, so per-turn reasoning and game
+  events exist as report material rather than only as metrics.
+- **KILLED at game 14 of 100, by the OS, with no error in the log.** Swap 19.5 of 20 GB,
+  7.8M swapouts. Cause was **DEFECT 15**: preflight summed *file sizes* (28.3 GB, passed)
+  while real residency is 1.3-1.6x that — `num_ctx: 8192` allocates a KV cache per model
+  that the file size does not include. The guard measured a proxy and the proxy passed.
+- **Salvaged:** the 14 completed games are intact and usable — **835 model calls across
+  all 10 models**, with reports generated from them. Nothing was lost but time, because
+  each game is written to its own file as it finishes rather than at the end of the batch.
+- **Fixed, two stages:** estimate resident as `file x 1.5` before pulling, then **verify
+  actual residency from `/api/ps` after warming** and refuse if over. On the new roster:
+  estimated 24.2 GB, verified **17.5 GB** — the multiplier errs safe.
+- **Roster changed to fit, at a cost worth naming.** `gpt-oss:20b` is ~14 GB resident,
+  over half the local budget, and its inclusion is what killed the run. Dropping it bought
+  six distinct smaller models, so the batch still fields ten: gpt-oss:120b and nemotron
+  (hosted, no local memory), llama3.1:8b, qwen3:4b, qwen2.5:3b, qwen3.5:2b,
+  granite3.1-dense:2b, exaone3.5:2.4b, gemma3:1b, and the rule-based control. **The
+  20B-vs-120B same-family comparison is lost from this batch** and belongs in
+  `scale-vs-control`, where it fits.

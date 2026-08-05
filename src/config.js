@@ -258,17 +258,24 @@ const ROSTERS = {
    * budget. Ten players means 3 Mafia, 1 Doctor, 1 Detective, 5 Villagers.
    */
   'ten-model': [
-    'gpt-oss-120b',   // large-open, hosted
-    'nemotron',       // large-open, hosted
-    'gpt-oss-20b',    // large-local, 13.8 GB
-    'llama3.1-8b',    // upper-mid-local, 4.9 GB
-    'qwen3-4b',       // mid-local, 2.5 GB — the anchor back to runs 007-011
-    'qwen2.5-3b',     // mid-local, 1.9 GB
-    'qwen',           // small-local 2B, 2.7 GB
-    'granite',        // small-local 2B, 1.6 GB
-    'gemma',          // small-local 1B, 0.8 GB
+    'gpt-oss-120b',   // large-open, HOSTED — costs no local memory
+    'nemotron',       // large-open, HOSTED — costs no local memory
+    'llama3.1-8b',    // upper-mid-local, ~7.4 GB resident
+    'qwen3-4b',       // mid-local, ~3.8 GB — the anchor back to runs 007-011
+    'qwen2.5-3b',     // mid-local, ~2.9 GB
+    'qwen',           // small-local 2B, ~4.1 GB
+    'granite',        // small-local 2B, ~2.4 GB
+    'exaone-2.4b',    // small-local 2.4B, ~2.5 GB
+    'gemma',          // small-local 1B, ~1.2 GB
     'scripted',       // the control, which every claim is measured against
   ],
+
+  /**
+   * gpt-oss:20b is deliberately NOT in `ten-model`: at ~14 GB resident it is more than
+   * half the local budget on its own, and including it is what killed run 013 at game 14.
+   * The 20B-vs-120B same-family comparison it enables belongs in its own small batch,
+   * where it fits — that is `scale-vs-control`.
+   */
 
   /** Eight distinct mid-size models, one seat each — widest single-batch coverage. */
   wide: ['qwen2.5-3b', 'llama3.2-3b', 'gemma3-4b', 'granite-2b', 'exaone-2.4b', 'qwen3-4b', 'nemotron-4b', 'scripted'],
