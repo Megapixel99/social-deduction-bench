@@ -22,6 +22,24 @@
 
 const { renderContext } = require('../engine/ledger.js');
 
+/**
+ * Decision fields come FIRST in every request, before THINKING.
+ *
+ * Reasoning-first is the better-known prompt shape and it was the original ordering
+ * here. It failed in a way worth recording: gpt-oss:20b reasons in proportion to how
+ * much context it is handed, so as the ledger grew its reply exhausted any token
+ * budget while still inside THINKING and the vote never arrived — 0 of 5 votes
+ * captured, and raising the cap to 2,500 only moved the failure to day 2 while
+ * pushing a single vote to 91 seconds. The budget chase does not converge because the
+ * ledger keeps growing.
+ *
+ * Decision-first makes truncation harmless: whatever else is lost, the move is
+ * already on the wire. The cost is real and is stated rather than hidden — a model
+ * commits before articulating its reasoning, which may cost some decision quality.
+ * That trade is correct here because the decision channel is what this benchmark
+ * measures, and a truncated reply was destroying it outright. THINKING is recorded
+ * for reading, never scored.
+ */
 const FORMAT_RULES = `RESPONSE FORMAT — reply with these lines and nothing else. Do not use markdown.`;
 
 function baseSystemPrompt(view) {
@@ -74,9 +92,9 @@ Legal choices: ${legalTargets.join(', ')}
 ${guidance}
 
 ${FORMAT_RULES}
-THINKING: your private reasoning, two or three sentences
-TARGET: exactly one name from the legal choices`,
-    expect: ['THINKING', 'TARGET'],
+TARGET: exactly one name from the legal choices
+THINKING: your private reasoning, two or three sentences`,
+    expect: ['TARGET', 'THINKING'],
   };
 }
 
@@ -90,9 +108,9 @@ function mafiaChatPrompt(view, partners) {
 Only ${[view.you.name, ...partners].join(' and ')} can read this. Discuss who to kill and how to handle tomorrow's discussion.
 
 ${FORMAT_RULES}
-THINKING: your private reasoning
-MESSAGE: what you say to your partner(s), one to three sentences`,
-    expect: ['THINKING', 'MESSAGE'],
+MESSAGE: what you say to your partner(s), one to three sentences
+THINKING: your private reasoning`,
+    expect: ['MESSAGE', 'THINKING'],
   };
 }
 
@@ -128,11 +146,11 @@ It is your turn to speak. Everyone alive will read your statement and your accus
 Living players you may name: ${others.join(', ')}
 
 ${FORMAT_RULES}
-THINKING: your private reasoning — who you think is Mafia, and what you want to achieve by speaking. Nobody else ever sees this.
 SUSPECT: the player you accuse out loud (a name from the list above). Everyone sees this, and it goes on the record next to your later vote.
 CONFIDENCE: how strongly you are pushing this accusation, 0.0 to 1.0
-STATEMENT: what you say out loud, two to four sentences. Address the others directly and make a case.`,
-    expect: ['THINKING', 'SUSPECT', 'CONFIDENCE', 'STATEMENT'],
+STATEMENT: what you say out loud, two to four sentences. Address the others directly and make a case.
+THINKING: your private reasoning — who you think is Mafia and what you wanted to achieve by speaking. Nobody else ever sees this.`,
+    expect: ['SUSPECT', 'CONFIDENCE', 'STATEMENT', 'THINKING'],
   };
 }
 
@@ -150,9 +168,9 @@ Legal votes: ${others.join(', ')}
 You may vote differently from the suspect you named out loud if that serves you.
 
 ${FORMAT_RULES}
-THINKING: your private reasoning
-VOTE: exactly one name from the legal votes`,
-    expect: ['THINKING', 'VOTE'],
+VOTE: exactly one name from the legal votes
+THINKING: your private reasoning`,
+    expect: ['VOTE', 'THINKING'],
   };
 }
 

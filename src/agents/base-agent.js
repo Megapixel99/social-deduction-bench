@@ -1,29 +1,7 @@
 const { logApiCall, logAgentTurn } = require('../logger.js');
 
 /**
- * Output token budget per request kind.
- *
- * A single global cap is wrong in both directions at once. Measured on
- * gpt-oss:20b: a shared 1024-token cap was hit exactly on a day statement, cutting
- * STATEMENT off mid-sentence — which would have scored a capable model as a poor
- * speaker for a reason that had nothing to do with the model. The same 1024 spent on
- * a night action, where the entire answer is a name plus a sentence of reasoning, is
- * most of the wall-clock cost of a batch.
- *
- * So: decisions get a small budget, speech gets a large one.
- */
-const MAX_TOKENS = {
-  statement: 3000,
-  mafia_chat: 2000,
-  vote: 2500,
-  night_kill: 2500,
-  night_investigate: 2500,
-  night_protect: 2500,
-  default: 2500,
-};
-
-/**
- * Why these are so much larger than they look like they need to be.
+ * Output token budget per request kind, and why these numbers are what they are.
  *
  * A first pass set decisions to 500 tokens, on the reasoning that the answer is one
  * name plus a sentence. Probed against a 100-token prompt, gpt-oss:20b confirmed it:
@@ -37,9 +15,22 @@ const MAX_TOKENS = {
  * not of the model, and it was about to be recorded as a 47% invalid-move rate for a
  * model whose answers were in fact well-formed.
  *
- * Budgets are therefore set from the observed requirement with headroom. Wall-clock
- * is the only thing this costs; the alternative cost was a wrong result.
+ * The budget chase does not converge, though: the ledger grows every day, so any cap
+ * calibrated on day 2 fails by day 4, and 2,500 tokens pushed one gpt-oss:20b vote to
+ * 91 seconds. The actual fix was structural — prompts.js now asks for the decision
+ * field BEFORE reasoning, so truncation can no longer destroy the move. These budgets
+ * are sized to let a normal reply finish, not to outlast the most verbose reasoner.
  */
+
+const MAX_TOKENS = {
+  statement: 1200,
+  mafia_chat: 800,
+  vote: 900,
+  night_kill: 900,
+  night_investigate: 900,
+  night_protect: 900,
+  default: 900,
+};
 
 /**
  * Base class for all player agents. Ported from the CTF project's base-agent and
