@@ -1,0 +1,7 @@
+node_modules/
+.env
+logs/
+reports/*
+!reports/*.py
+.claude/settings.local.json
+.DS_Store

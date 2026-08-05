@@ -1,0 +1,26 @@
+{
+  "name": "mafiaai",
+  "version": "1.0.0",
+  "description": "AI-vs-AI Mafia — a social-deduction benchmark that measures deception and deception-detection separately from win rate",
+  "license": "MIT",
+  "author": "Seth Wheeler",
+  "type": "commonjs",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node test/checks.js",
+    "test-game": "node src/index.js --test",
+    "start:local": "node src/index.js --local",
+    "start:cloud": "node src/index.js --cloud",
+    "start:mixed": "node src/index.js --mixed",
+    "start:loop": "node src/index.js --cloud --loop"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@google/generative-ai": "^0.21.0",
+    "axios": "^1.7.0",
+    "dotenv": "^16.4.0",
+    "ollama": "^0.6.3",
+    "openai": "^4.73.0"
+  }
+}
