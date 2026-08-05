@@ -330,6 +330,56 @@ Hardware for every run: Apple M1 Max, 64 GB, local Ollama. Raw logs in `results/
   before suspicion could form than concealment skill.
 - **Limits:** one seed family, 30 games, one roster. n=30 per model is half of 007's.
 
+## 009b/009c — RESULT: the large end, anchored — reasoning mode beats size
+
+- **Why:** 007 put a 20B *below* a 2B, which needed either confirming or explaining. Two
+  candidate explanations: size does not help, or the reasoning *mode* is what helps and
+  gpt-oss:20b happens to have it. One large model on the board cannot separate those.
+- **Setup:** two 30-game batches at seed 7, each holding **one** large model, because both
+  together is ~39 GB and over the memory budget (DEFECT 12). `llama3.1:8b`, `qwen3:4b`,
+  `qwen3.5:2b` and the control appear in both as **anchors**, making the large models
+  comparable *through* them.
+- **RESULT — 009b (gpt-oss:20b, 23.9 GB, town 8/30):**
+
+  | model | n | det.lift | invalid | calib | lat |
+  |---|---|---|---|---|---|
+  | control | 60 | **+0.155** | 0.000 | +0.228 | 0 |
+  | qwen3.5:2b | 30 | +0.137 | 0.101 | 0.000 | 4.0 s |
+  | **gpt-oss:20b** | 60 | **+0.113** | 0.013 | +0.056 | 4.2 s |
+  | llama3.1:8b | 30 | +0.083 | 0.006 | −0.050 | 7.1 s |
+  | qwen3:4b | 30 | −0.073 | 0.039 | −0.025 | 4.4 s |
+
+- **RESULT — 009c (mistral-small:24b, 24.4 GB, town 6/30):**
+
+  | model | n | det.lift | invalid | calib | lat |
+  |---|---|---|---|---|---|
+  | control | 60 | **+0.147** | 0.000 | +0.154 | 0 |
+  | qwen3.5:2b | 30 | +0.094 | 0.152 | — | 4.4 s |
+  | qwen3:4b | 30 | +0.026 | 0.053 | −0.033 | 4.5 s |
+  | **mistral-small:24b** | 60 | **−0.001** | 0.000 | −0.032 | **18.3 s** |
+  | llama3.1:8b | 30 | −0.005 | 0.000 | 0.000 | 5.9 s |
+
+- **ANCHOR DRIFT — the design worked.** Between arms: control +0.155 → +0.147
+  (**−0.008**), qwen3.5:2b −0.043, qwen3:4b +0.099, llama3.1:8b −0.088; mean ≈ **−0.010**.
+  The control barely moved, so the two batches are comparable and the split was not a
+  compromise. *(The 8B and 4B anchors swinging ±0.09 at n=30 is the noise floor at that
+  sample size — worth remembering before reading any n=30 row closely.)*
+- **FINDING — reasoning mode, not parameter count.** mistral-small:24b is the **larger**
+  model (23.6 B vs 20.9 B) and non-reasoning, and it scores at **exactly chance**
+  (−0.001). gpt-oss:20b with low reasoning effort scores **+0.113**. Δ ≈ **+0.114**, about
+  +0.104 after anchor correction — an order of magnitude larger than the anchor noise, and
+  **both have essentially perfect protocol compliance** (invalid 0.000 and 0.013), so this
+  is not a format artefact. This is the clearest single explanatory result in the project:
+  what buys detection here is *deliberate inference at generation time*, not scale.
+- **FINDING — the control still leads every arm.** +0.155 and +0.147, above every model in
+  both. Nothing measured so far beats a few dozen lines of voting-record policy.
+- **FINDING — the worst cost/benefit measured here.** mistral-small:24b costs 18.3 s per
+  call, 4.4× gpt-oss:20b's 4.2 s, and returns chance-level detection. The reasoning model
+  is both better and cheaper, because low effort emits few visible tokens.
+- **Caveats:** n=30 per anchor seat, 60 for the doubled large seats. qwen3.5:2b's 009c row
+  (invalid 0.152) is over the gate. Town won 8/30 and 6/30, so deception-side numbers come
+  from short games. One seed family throughout.
+
 ## 011 — Isolate the context effect: one seat differs — READY (harness built)
 
 - **Why:** 008 could not attribute its own result. It switched every seat from ledger to
