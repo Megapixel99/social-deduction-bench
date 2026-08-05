@@ -69,7 +69,7 @@ function logPhase({ day, phase }) {
  * the format held, and cost. The raw response text is truncated here and kept in
  * full in api.jsonl, so the analysis file stays small enough to load.
  */
-function logAgentTurn({ player, provider, model, kind, fields, missing, raw, error, latencyMs, tokensUsed }) {
+function logAgentTurn({ player, provider, model, kind, day, phase, fields, missing, raw, error, latencyMs, tokensUsed }) {
   const entry = {
     ts: new Date().toISOString(),
     game: gameIndex,
@@ -78,6 +78,8 @@ function logAgentTurn({ player, provider, model, kind, fields, missing, raw, err
     provider,
     model,
     request: kind,
+    day: day ?? null,
+    phase: phase ?? null,
     error: error || null,
     fields: fields || {},
     missingFields: missing || [],
@@ -93,7 +95,9 @@ function logAgentTurn({ player, provider, model, kind, fields, missing, raw, err
     readable(`[${player}] ${kind}: missing field(s) ${missing.join(', ')}`);
   }
 
-  if (buffers.turns.length % 50 === 0) flushAll();
+  // 200, not 50: a 100-game batch produces thousands of turns and each flush
+  // rewrites the whole file.
+  if (buffers.turns.length % 200 === 0) flushAll();
   return entry;
 }
 

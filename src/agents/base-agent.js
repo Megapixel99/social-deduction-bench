@@ -103,7 +103,7 @@ class BaseAgent {
    * @param {string} req.userPrompt
    * @param {string[]} req.expect       field names to extract, e.g. ['THINKING','VOTE']
    */
-  async ask({ kind, systemPrompt, userPrompt, expect, legal }) {
+  async ask({ kind, systemPrompt, userPrompt, expect, legal, day, phase }) {
     this.turnCount++;
     this.stats.calls++;
 
@@ -134,6 +134,8 @@ class BaseAgent {
         provider: this.provider,
         model: this.model,
         kind,
+        day,
+        phase,
         error: detail,
       });
       return { fields: {}, raw: '', error: detail };
@@ -181,6 +183,8 @@ class BaseAgent {
       provider: this.provider,
       model: this.model,
       kind,
+      day,
+      phase,
       fields,
       missing,
       raw: response.text,

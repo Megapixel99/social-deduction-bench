@@ -32,7 +32,7 @@ class ScriptedAgent extends BaseAgent {
    * engine cannot tell the difference — which is the point: the baseline plays under
    * identical rules, identical legal-move resolution, and identical logging.
    */
-  async ask({ kind, view, legal, expect }) {
+  async ask({ kind, view, legal, expect, day, phase }) {
     this.turnCount++;
     this.stats.calls++;
 
@@ -43,6 +43,8 @@ class ScriptedAgent extends BaseAgent {
       provider: this.provider,
       model: this.model,
       kind,
+      day,
+      phase,
       fields,
       missing: expect.filter((f) => f !== 'THINKING' && !fields[f]),
       raw: '(rule-based)',

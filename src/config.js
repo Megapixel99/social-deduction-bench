@@ -245,6 +245,31 @@ const ROSTERS = {
   'ctx-one-full': ['qwen', 'qwen@full', 'qwen3-4b', 'qwen3-4b@full', 'gpt-oss-20b', 'scripted', 'scripted'],
   'ctx-one-ledger': ['qwen@full', 'qwen', 'qwen3-4b@full', 'qwen3-4b', 'gpt-oss-20b', 'scripted', 'scripted'],
 
+  /**
+   * TEN distinct models, one seat each, for the long documented batch. Composition is
+   * dictated by what actually runs: the frontier APIs are unfunded (012), so the two
+   * hosted seats are the Ollama Cloud models that answered, and the rest are local.
+   *
+   * That is a better spread than ten same-tier models anyway — it covers 1B to 120B plus
+   * the rule-based control on one board, so scale is a within-batch comparison instead of
+   * a cross-session one, which run 010 showed is the only safe kind.
+   *
+   * Local resident weights ~28 GB (the two cloud seats cost none), inside the 40 GB
+   * budget. Ten players means 3 Mafia, 1 Doctor, 1 Detective, 5 Villagers.
+   */
+  'ten-model': [
+    'gpt-oss-120b',   // large-open, hosted
+    'nemotron',       // large-open, hosted
+    'gpt-oss-20b',    // large-local, 13.8 GB
+    'llama3.1-8b',    // upper-mid-local, 4.9 GB
+    'qwen3-4b',       // mid-local, 2.5 GB — the anchor back to runs 007-011
+    'qwen2.5-3b',     // mid-local, 1.9 GB
+    'qwen',           // small-local 2B, 2.7 GB
+    'granite',        // small-local 2B, 1.6 GB
+    'gemma',          // small-local 1B, 0.8 GB
+    'scripted',       // the control, which every claim is measured against
+  ],
+
   /** Eight distinct mid-size models, one seat each — widest single-batch coverage. */
   wide: ['qwen2.5-3b', 'llama3.2-3b', 'gemma3-4b', 'granite-2b', 'exaone-2.4b', 'qwen3-4b', 'nemotron-4b', 'scripted'],
 

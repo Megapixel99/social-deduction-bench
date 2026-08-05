@@ -166,6 +166,8 @@ class GameEngine {
       const { systemPrompt, userPrompt, expect } = mafiaChatPrompt(view, partners);
       const { fields } = await this.agent(m.name).ask({
         kind: 'mafia_chat',
+        day: this.state.day,
+        phase: this.state.phase,
         systemPrompt,
         userPrompt,
         expect,
@@ -206,6 +208,8 @@ class GameEngine {
     const agent = this.agent(actor.name);
     const { fields } = await agent.ask({
       kind: `night_${action}`,
+      day: s.day,
+      phase: s.phase,
       systemPrompt,
       userPrompt,
       expect,
@@ -339,6 +343,8 @@ class GameEngine {
     const legalNames = s.livingNames().filter((n) => n !== speaker.name);
     const { fields } = await agent.ask({
       kind: 'statement',
+      day: s.day,
+      phase: s.phase,
       systemPrompt,
       userPrompt,
       expect,
@@ -415,6 +421,8 @@ class GameEngine {
       const legal = s.livingNames().filter((n) => n !== voter.name);
       const { fields } = await agent.ask({
         kind: 'vote',
+        day: s.day,
+        phase: s.phase,
         systemPrompt,
         userPrompt,
         expect,
