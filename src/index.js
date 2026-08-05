@@ -45,11 +45,14 @@ async function preflight() {
       console.error('Start it with:  ollama serve');
       process.exit(1);
     }
-    for (const m of localModels) await pullModel(m);
-
-    // Resident-weight check. Over budget, Ollama evicts and reloads between turns and
-    // the latency column stops measuring the model — a silent data-quality failure that
-    // is much cheaper to catch here than to spot afterwards in a finished batch.
+    // Resident-weight check FIRST, before any pull. Over budget, Ollama evicts and
+    // reloads between turns and the latency column stops measuring the model — a silent
+    // data-quality failure, much cheaper to catch here than in a finished batch.
+    //
+    // Ordering matters and got this wrong once: with the check after the pull loop it was
+    // unreachable while another batch was running, because pullModel's /api/tags probe
+    // times out under load and falls through to a real pull with a 3600s timeout. A
+    // guard that only works on an idle machine is not a guard.
     const sizes = await modelSizesGb(localModels);
     const totalGb = Object.values(sizes).reduce((a, b) => a + b, 0);
     const budget = CONFIG.game.memBudgetGb;
@@ -66,6 +69,7 @@ async function preflight() {
       process.exit(1);
     }
 
+    for (const m of localModels) await pullModel(m);
     console.log(`[Ollama] Warming ${localModels.length} model(s)...`);
     for (const m of localModels) await warmModel(m);
   }

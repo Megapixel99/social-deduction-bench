@@ -173,6 +173,13 @@ for step changes", which is monitoring for a problem instead of preventing one. 
 a preflight sum against `--mem-budget`, and by splitting the ladder into anchored
 batches. **Lesson: if the failure mode is silent data corruption, a preflight refusal
 beats a note-to-self to look for it later.**
+*Addendum — the guard was unreachable where it mattered.* First version ran the check
+**after** the pull loop, and `pullModel`'s `/api/tags` probe times out while another batch
+is loading models, falling through to a real pull with a 3600 s timeout. So the guard
+never ran on a busy machine, which is precisely when a roster is at risk. Moved ahead of
+the pull, then defeated deliberately (`--mem-budget=5` must refuse; a real budget must
+pass) — **a check that has not been defeated is a guess**, and this one had silently
+printed nothing when I first claimed it worked.
 
 **DEFECT 11 — contradictory format instructions (caught before shipping).** With JSON
 mode added, prompts still said "reply with these lines and nothing else" while the
