@@ -56,6 +56,40 @@ const MODELS = {
   'qwen3-4b': { provider: 'ollama', model: 'qwen3:4b',    tier: 'mid-local' },
   'gemma4-e4b': { provider: 'ollama', model: 'gemma4:e4b', tier: 'mid-local' },
 
+  // --- a size ladder, all resident locally. Used for the scaling question. ---
+  'granite-2b':   { provider: 'ollama', model: 'granite3.2:2b',              tier: 'small-local' },
+  'exaone-2.4b':  { provider: 'ollama', model: 'exaone3.5:2.4b',             tier: 'small-local' },
+  'r1-1.5b':      { provider: 'ollama', model: 'deepseek-r1:1.5b',           tier: 'small-local' },
+  'qwen3-1.7b':   { provider: 'ollama', model: 'qwen3:1.7b',                 tier: 'small-local' },
+
+  /**
+   * qwen2.5:3b is the BASE MODEL of the CTF project's fine-tune (`ctf-bot`). Seating
+   * both makes the transfer question a paired comparison rather than a guess: same
+   * architecture, same size, same quantisation family, differing only by a LoRA
+   * trained on capture-the-flag replays. Without the base model present, any
+   * difference in ctf-bot's score could just be "3B models do this."
+   */
+  'qwen2.5-3b':   { provider: 'ollama', model: 'qwen2.5:3b',                 tier: 'mid-local' },
+  'llama3.2-3b':  { provider: 'ollama', model: 'llama3.2:3b',                tier: 'mid-local' },
+  'gemma3-4b':    { provider: 'ollama', model: 'gemma3:4b',                  tier: 'mid-local' },
+  'phi4-mini':    { provider: 'ollama', model: 'phi4-mini-reasoning:latest', tier: 'mid-local' },
+  'nemotron-4b':  { provider: 'ollama', model: 'nemotron-mini:4b',           tier: 'mid-local' },
+
+  'llama3.1-8b':  { provider: 'ollama', model: 'llama3.1:8b',                tier: 'upper-mid-local' },
+  'qwen2.5-7b':   { provider: 'ollama', model: 'qwen2.5:7b',                 tier: 'upper-mid-local' },
+  'mistral-7b':   { provider: 'ollama', model: 'mistral:latest',             tier: 'upper-mid-local' },
+  'granite-8b':   { provider: 'ollama', model: 'granite3.1-dense:8b',        tier: 'upper-mid-local' },
+  'exaone-7.8b':  { provider: 'ollama', model: 'exaone3.5:7.8b',             tier: 'upper-mid-local' },
+  'olmo2-7b':     { provider: 'ollama', model: 'olmo2:7b',                   tier: 'upper-mid-local' },
+
+  /**
+   * Large and NON-reasoning, as the control for gpt-oss:20b. If the two land together,
+   * size is what mattered; if they diverge, the reasoning mode is doing the work — and
+   * that distinction is invisible with only one large model on the board.
+   */
+  'mistral-small-24b': { provider: 'ollama', model: 'mistral-small:latest',  tier: 'large-local' },
+  'phi4-reasoning':    { provider: 'ollama', model: 'phi4-reasoning:latest', tier: 'large-local' },
+
   /**
    * Large open model, resident locally. 13.8 GB of weights — it fits in this
    * machine's memory without any streaming, which makes it the cheap way to get a
@@ -143,8 +177,27 @@ const ROSTERS = {
    */
   'local-tiers': ['gpt-oss-20b', 'gpt-oss-20b', 'qwen3-4b', 'qwen', 'gemma', 'scripted', 'scripted'],
 
-  /** Does CTF-replay fine-tuning transfer to a different social task? */
-  'ctf-transfer': ['ctf-bot', 'ctf-bot', 'qwen', 'qwen3-4b', 'gemma', 'granite', 'scripted'],
+  /**
+   * Does CTF-replay fine-tuning transfer? Paired against its own base model, so a
+   * difference cannot be explained by size alone.
+   */
+  'ctf-transfer': ['ctf-bot', 'ctf-bot', 'qwen2.5-3b', 'qwen2.5-3b', 'gemma', 'granite', 'scripted'],
+
+  /**
+   * The size ladder: 1B -> 2B -> 4B -> 8B -> 20B plus the control, one seat each, all
+   * local and all resident. This is the roster that answers "how big does a local model
+   * need to be", which no single-tier field can.
+   */
+  ladder: ['gemma', 'qwen', 'qwen3-4b', 'llama3.1-8b', 'gpt-oss-20b', 'mistral-small-24b', 'scripted'],
+
+  /**
+   * Reasoning vs non-reasoning at matched scale, since the reasoning models needed a
+   * different integration and that may cost or buy them something at play time too.
+   */
+  'reasoning-vs-not': ['gpt-oss-20b', 'mistral-small-24b', 'qwen3-4b', 'gemma3-4b', 'phi4-mini', 'llama3.2-3b', 'scripted'],
+
+  /** Eight distinct mid-size models, one seat each — widest single-batch coverage. */
+  wide: ['qwen2.5-3b', 'llama3.2-3b', 'gemma3-4b', 'granite-2b', 'exaone-2.4b', 'qwen3-4b', 'nemotron-4b', 'scripted'],
 
   /**
    * Local-only field spanning the resident and streamed large tiers. Needs a running

@@ -1,0 +1,205 @@
+# CLAUDE.md
+
+Guidance for Claude Code working in this repository. **Keep this file up to date** —
+when the project gains code, findings, defects or conventions, update the relevant
+section in the same session. Same convention as `../llmRnD/trainingReseach/CLAUDE.md`.
+
+Companion files:
+- `README.md` — how to run it.
+- `RESEARCH.md` — the small-local-LLM question, predictions stated *before* measuring.
+- `RESULTS.md` — the experiment log, one numbered entry per batch.
+- **This file** — architecture, conventions, and the defect log below.
+
+## Project purpose
+
+AI-vs-AI Mafia as a **social-deduction benchmark**. The claim it exists to support is
+not "models can play Mafia" — it is that **deception and deception-detection can be
+measured per turn and corrected for chance**, so results say something a win/loss column
+cannot.
+
+Central research question: *how large does a local model need to be to do social
+deduction, and which half of the task does size buy?*
+
+## The two-channel design (read this before touching prompts)
+
+Mafia is two tasks in one costume:
+
+| channel | request | shape | measurable how |
+|---|---|---|---|
+| **decision** | vote, night target, public accusation | bounded — one of ≤9 names | against ground truth, per turn |
+| **speech** | what other players read | unbounded generation | only by its effect on others |
+
+Keeping them separate is the whole design. It lets a model be scored as a reasoner and
+as a persuader independently, and lets the two be served by *different* models — the
+cheapest way to find out which half a small model can do.
+
+`THINKING` is the only private field. `SUSPECT` is a **public** accusation (see DEFECT 1).
+The private-vs-public comparison comes from the **vote**, not from THINKING: talk is
+cheap, votes are costly, and the gap between them is the classic Mafia tell.
+
+## Architecture
+
+```
+src/
+  index.js            CLI, batch runner, leaderboard
+  config.js           model registry (39 entries), named rosters, seat assignment
+  logger.js           session logs; atomic writes, JSONL for API calls
+  metrics.js          per-turn luck-corrected metrics + aggregation
+  engine/
+    roles.js          role data, night-action order, setups by player count
+    state.js          game state AND the visibility rules
+    ledger.js         context rendering: derived ledger vs raw transcript
+    engine.js         phase machine; adjudicates every model output
+    rng.js            seeded PRNG; any game replays exactly
+  agents/
+    base-agent.js     model call, token budgets, field parsing, name resolution
+    schemas.js        JSON schemas for the response contract
+    prompts.js        every prompt, built only from a player's own view
+    scripted-player.js rule-based control
+    factory.js        seat -> adapter
+    providers/        openai (+ any OpenAI-compatible), claude, gemini,
+                      grok/perplexity, ollama, ollama-cloud
+test/checks.js        parsing, win conditions, determinism, visibility
+results/              raw logs behind every number in RESULTS.md
+```
+
+### Invariants that must not break
+
+1. **`state.viewFor(name)` is the only source of what a player knows.** Every prompt is
+   built from it, so the hidden-information audit lives in one file. There is
+   deliberately no branch that can reach another *living* player's role.
+   `test/checks.js` audits this across every seat in both render modes — and
+   **mutation-tests the leak detector** by planting a leak, because a detector that has
+   never caught one is indistinguishable from one that is asleep.
+2. **The engine adjudicates; agents only propose.** Every model output is resolved
+   against the legal move set before it touches state. An illegal or missing move falls
+   back to a *seeded* random legal move so a weak model can still finish a game —
+   otherwise it drops out of the sample and the remaining games flatter it.
+3. **Every fallback is counted.** `invalid_move_rate`, `namedDeadPlayer`,
+   `namedUnknownPlayer`, `unparseable`, `truncated`, `schemaIgnored` are separate
+   counters. "Played badly" and "did not produce a parseable move" must never be
+   averaged together.
+4. **Instructions are identical for every model.** Reasoning-*mode* controls
+   (`/no_think`, `think:"low"`) are exempt — they are switches, not task guidance.
+   Tuning prompt *content* per model would make the leaderboard a measure of my prompt
+   engineering.
+5. **Nothing is enum-constrained that a metric depends on.** See DEFECT 8's design note.
+
+## Conventions
+
+- CommonJS, no TypeScript, no build step. Node ≥ 20.
+- Comments explain *why*, and cite the measurement when a choice came from one.
+- A finding gets written to `RESULTS.md` with its `n`. A change gets a DEFECT entry here.
+- Reuse `--seed` across arms so comparisons are paired, never independent samples.
+- `results/` keeps the raw log for every number published, including void runs.
+
+## Defect log
+
+Numbered as found. Kept because the *pattern* is reusable — nine of the eleven below
+were cases where a harness flaw would have been published as a model result.
+
+**DEFECT 1 — a "private" field was shown to everyone.** `SUSPECT` was documented as the
+player's private belief, and the ledger rendered the accusation record into every
+player's view. Every Mafia could have read the town's private suspicions, destroying the
+hidden information the benchmark exists to measure. Fixed by making it explicitly a
+*public* accusation, which also keeps the ledger derivable without running NLP over free
+text. **Lesson: a field's visibility is part of its definition; document it where it is
+consumed, not only where it is produced.**
+
+**DEFECT 2 — regex `$` with the `m` flag truncated every multi-line statement.** Field
+capture stopped at the first newline, so any statement longer than one line lost its
+tail. Fixed with `$(?![\s\S])`. Caught by a unit check that asserted on a two-line value;
+would have been invisible in aggregate metrics.
+
+**DEFECT 3 — deception index divided by a near-zero denominator.** It was
+accusations-received over the *mean* per town player. In 10-player games most town
+players draw zero accusations, so the mean approached zero and the index read **12.5**.
+Fixed by dividing by *total* town accusations (a number that grows with the game) scaled
+by pool size, plus a minimum-sample gate. **Lesson: check a ratio's denominator at the
+edges of the configuration space, not just the default.**
+
+**DEFECT 4 — a win check that could never fire.** `settle()` ran between night and dawn,
+but deaths are applied at dawn. Harmless, and removed anyway: leaving it in implies
+deaths land earlier than they do.
+
+**DEFECT 5 — token budget calibrated on a toy prompt.** Decisions were capped at 500
+tokens; probed against a 100-token prompt, gpt-oss:20b finished in 162 with
+`done_reason: stop`, confirming the cap looked generous. In a real game it produced the
+VOTE field in **0 of 5** votes, because the real prompt is a ~2,500-token ledger and a
+reasoning model reasons *in proportion to its context*. **Lesson: calibrate a budget on
+the largest real input, never a synthetic one.**
+
+**DEFECT 6 — Qwen3 ignores API-level `think:false`** and reasons in plain prose, burning
+the budget before reaching any field. Its own `/no_think` control token works. Applied
+in the Ollama adapter for `qwen3*` only.
+
+**DEFECT 7 — `think:false` does not disable reasoning for gpt-oss either.** The tokens go
+to a harmony channel the JSON schema does not constrain, so it exhausts any budget while
+its emitted JSON stays absent — `false`/2500 truncated at 48.4 s, `"low"`/2000 finished
+in 103 tokens and 3.6 s. The fix is an **effort level, not a bigger cap**, and it is
+4–7× faster. **Lesson: three reasoning-model defects lived in three different places
+(visible channel, hidden channel, plain-prose reasoning) and none was visible from the
+play metrics — all three needed truncation counted as its own signal.**
+
+**DEFECT 8 — the free-text contract is structurally wrong for reasoning models.** Root
+cause of 5–7. Three patches each improved the symptom without touching the cause.
+Fixed by schema-constrained decoding: a grammar cannot emit a document missing a required
+property, so reasoning cannot crowd out the decision. qwen3:4b invalid 0.467 → **0.000**;
+per-game wall-clock ~18 min → ~5 min.
+*Design note:* targets are deliberately **not** enum-constrained. Restricting them to
+living players would make illegal moves impossible and silently zero
+`invalid_move_rate` and `namedDeadPlayer` — the metrics that measure roster tracking, and
+a headline small-model finding. **A constraint must never be presented as a capability.**
+`--strict-targets` opts in for anyone who wants guaranteed-playable games.
+
+**DEFECT 9 — I compared arms across different seeds.** I quoted the control at +0.293
+(seed 1) against models run at seed 7, where the control actually scores +0.133. Same
+policy; the seed-to-seed spread was larger than the model gap I was claiming. **Lesson:
+this is exactly trainingResearch finding 24 — asserting an observable more than one
+mechanism could produce. Paired seeds are not a nicety; they are the difference between a
+result and a coincidence.**
+
+**DEFECT 10 — a config typo threw a raw stack trace and broke `--help`.** Seat building
+runs at module load, so an unknown model name crashed before anything printed —
+including the help text someone reaches for *after* mistyping a name. Captured into
+`CONFIG.configError` and reported by `index.js`.
+
+**DEFECT 11 — contradictory format instructions (caught before shipping).** With JSON
+mode added, prompts still said "reply with these lines and nothing else" while the
+decoder was constrained to JSON. `formatRules(view)` now states the contract actually in
+force. **Lesson: when adding a second mode, grep for every place that describes the
+first one.**
+
+## Environment & commands
+
+```bash
+npm install
+npm test                 # 25 checks: parsing, win conditions, determinism, visibility
+npm run test-game        # rule-based players; no keys, no GPU, seconds
+```
+
+```bash
+node src/index.js --help
+```
+
+Local runs need `ollama serve`. Batches must be run **sequentially** — two concurrent
+Ollama batches thrash model loading and the latency figures become an artefact of
+eviction rather than a property of the model. `results/` and `RESULTS.md` record what
+each batch was for.
+
+Hardware these results were measured on: Apple M1 Max, 64 GB. Throughput, not quality,
+is the constraint on batch size: ~90–110 s/game for the `local-tiers` roster.
+
+## Open questions
+
+1. **Does the derived ledger actually help small models?** (`RESULTS.md` 008.) The only
+   prediction whose answer is useful either way.
+2. **Is the inverted size ordering in 007 real?** A 2B above a 20B is suspicious enough
+   to earn the standing rule about distrusting a good measurement. 009's ladder, with a
+   non-reasoning 24B beside the reasoning 20B, separates size from reasoning mode.
+3. **Does CTF-replay fine-tuning transfer?** (010, paired against its own base model.)
+4. **Do frontier models clear the control at all?** Untested, and it is the check that
+   validates every other number — if they sit near +0.13 too, the game is measuring
+   bandwagon dynamics rather than reasoning.
+5. **Swiftlet's 35B/80B streamed tier.** Deferred deliberately while the output contract
+   was broken, since the resident 20B hit that wall first. Now worth the 18 GB.
