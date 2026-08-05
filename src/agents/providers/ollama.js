@@ -19,16 +19,39 @@ class OllamaAgent extends BaseAgent {
     this.baseUrl = CONFIG.api.ollama.baseUrl;
   }
 
+  /**
+   * Qwen3 ignores the API-level `think: false` and reasons in plain prose regardless,
+   * burning the budget before it reaches the response fields. Measured: with
+   * `think:false` alone it produced no VOTE field at all; with `/no_think` appended
+   * the field appears.
+   *
+   * `/no_think` is Qwen3's own control token for reasoning mode — the same request as
+   * `think: false`, expressed the way this family actually listens to. It carries no
+   * task guidance, so it does not breach the rule that game instructions stay
+   * identical across models; tuning a prompt's *content* per model would make the
+   * leaderboard a measure of my prompt engineering, and this is not that.
+   */
+  applyReasoningControl(messages) {
+    if (!/^qwen3/i.test(this.model)) return messages;
+    const out = messages.map((m) => ({ ...m }));
+    const lastUser = [...out].reverse().find((m) => m.role === 'user');
+    if (lastUser && !lastUser.content.includes('/no_think')) {
+      lastUser.content += '\n/no_think';
+    }
+    return out;
+  }
+
   async callModel(messages, { maxTokens } = {}) {
     const maxAttempts = 2;
     let last = { text: '', thinking: '', tokensUsed: 0 };
+    const payloadMessages = this.applyReasoningControl(messages);
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const response = await axios.post(
         `${this.baseUrl}/api/chat`,
         {
           model: this.model,
-          messages,
+          messages: payloadMessages,
           stream: false,
           think: false,
           keep_alive: '30m',

@@ -141,7 +141,7 @@ const ROSTERS = {
    * big does a local model need to be to play social deduction" — a small-vs-small
    * field would only show they are bad at it together, which is a much weaker claim.
    */
-  'local-tiers': ['gpt-oss-20b', 'gpt-oss-20b', 'qwen3-4b', 'qwen3-4b', 'qwen', 'gemma', 'scripted'],
+  'local-tiers': ['gpt-oss-20b', 'gpt-oss-20b', 'qwen3-4b', 'qwen', 'gemma', 'scripted', 'scripted'],
 
   /** Does CTF-replay fine-tuning transfer to a different social task? */
   'ctf-transfer': ['ctf-bot', 'ctf-bot', 'qwen', 'qwen3-4b', 'gemma', 'granite', 'scripted'],

@@ -13,14 +13,33 @@ const { logApiCall, logAgentTurn } = require('../logger.js');
  * So: decisions get a small budget, speech gets a large one.
  */
 const MAX_TOKENS = {
-  statement: 1400,
-  mafia_chat: 600,
-  vote: 500,
-  night_kill: 500,
-  night_investigate: 500,
-  night_protect: 500,
-  default: 800,
+  statement: 3000,
+  mafia_chat: 2000,
+  vote: 2500,
+  night_kill: 2500,
+  night_investigate: 2500,
+  night_protect: 2500,
+  default: 2500,
 };
+
+/**
+ * Why these are so much larger than they look like they need to be.
+ *
+ * A first pass set decisions to 500 tokens, on the reasoning that the answer is one
+ * name plus a sentence. Probed against a 100-token prompt, gpt-oss:20b confirmed it:
+ * done_reason "stop" after 162 tokens, field present. In an actual game it produced
+ * the VOTE field in 0 of 5 votes.
+ *
+ * The difference was the prompt. Replaying a real ~2,500-token ledger prompt, the
+ * same model needed 1,716 tokens to finish — **a reasoning model reasons in
+ * proportion to how much context it is given**, so a budget calibrated on a toy
+ * prompt is not calibrated at all. A truncated reply is a measurement of my budget,
+ * not of the model, and it was about to be recorded as a 47% invalid-move rate for a
+ * model whose answers were in fact well-formed.
+ *
+ * Budgets are therefore set from the observed requirement with headroom. Wall-clock
+ * is the only thing this costs; the alternative cost was a wrong result.
+ */
 
 /**
  * Base class for all player agents. Ported from the CTF project's base-agent and
