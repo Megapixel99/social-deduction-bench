@@ -181,6 +181,16 @@ the pull, then defeated deliberately (`--mem-budget=5` must refuse; a real budge
 pass) — **a check that has not been defeated is a guess**, and this one had silently
 printed nothing when I first claimed it worked.
 
+**DEFECT 13 — the leaderboard pooled the arms of my own experiment.** Run 011 seated the
+same model twice, differing only in `contextMode`, to compare ledger against full
+transcript within one game. `aggregate()` keyed rows on `p.model`, so both seats merged
+into a single row at n=80 and the comparison was averaged away entirely — the batch ran to
+completion and produced a table that could not answer the question it was built for.
+Recovered without re-running, because the per-game snapshots record each seat's
+`contextMode`. Key is now `model [contextMode]`. **Lesson: the aggregation key must name
+every variable the experiment varies. A row whose key omits the independent variable is
+not a result.**
+
 **DEFECT 11 — contradictory format instructions (caught before shipping).** With JSON
 mode added, prompts still said "reply with these lines and nothing else" while the
 decoder was constrained to JSON. `formatRules(view)` now states the contract actually in

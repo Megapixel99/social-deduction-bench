@@ -55,6 +55,7 @@ function computeMetrics(snapshot, agentSummaries) {
       model: p.model,
       provider: p.provider,
       tier: p.tier || null,
+      contextMode: p.contextMode || null,
       role: p.role,
       faction: p.faction,
       survived: p.alive,
@@ -258,7 +259,14 @@ function aggregate(gameMetrics) {
 
   for (const gm of gameMetrics) {
     for (const p of Object.values(gm.perPlayer)) {
-      const key = p.model;
+      /**
+       * The grouping key must include every experimental variable, not just the model.
+       * Run 011 seated the same model twice, differing only in context mode, and this
+       * key pooled the two — averaging away the exact comparison the batch existed to
+       * make. A leaderboard row is only meaningful if its key names everything that
+       * was varied.
+       */
+      const key = p.contextMode ? `${p.model} [${p.contextMode}]` : p.model;
       const m = (models[key] = models[key] || {
         model: key,
         provider: p.provider,
