@@ -175,18 +175,88 @@ Two things that fell out of this immediately:
   voting-record evidence accumulated to override it. Useful, because it means the
   benchmark can distinguish "reasoning from evidence" from "following the room."
 
+## 5b. MEASURED — small local models, 12 games, paired seed
+
+Run on an M1 Max (64 GB) against a local Ollama. Rule-based control run over the
+**same seed 7**, so the two are paired rather than independent samples.
+Raw logs in `results/`.
+
+| model | tier | n | det.lift | invalid | calib | town wins |
+|---|---|---|---|---|---|---|
+| rule-based control | baseline | 84 | +0.133 | 0.000 | **+0.225** | **3/12** |
+| granite3.1-dense:2b | small-local | 12 | **+0.156** | 0.029 | 0.000 | 0/12 |
+| qwen3.5:2b | small-local | 24 | +0.053 | 0.115 | **−0.200** | 0/12 |
+| smollm2:1.7b | small-local | 12 | −0.003 | 0.189 | — | 0/12 |
+| llama3.2:1b | small-local | 12 | −0.400 | **0.513** | — | 0/12 |
+| gemma3:1b | small-local | 24 | −0.450 | **0.509** | — | 0/12 |
+
+**A field of small local models lost all twelve games as town.** The control, same
+seeds, won three.
+
+1. **There is a compliance cliff between 1B and 2B, and it was not predicted.** The 1B
+   models had roughly half their moves substituted at random (0.51, 0.51) against
+   0.03–0.12 for the 2B models. Their det.lift of −0.40/−0.45 is therefore not a
+   measurement of deduction at all; it is what a random vote scores. Prediction 2 was
+   right about 1B and wrong about 2B.
+
+2. **Prediction 1 holds, but the control is not beaten *or* clearly matched.** Best
+   small model +0.156 against the control's +0.133 — the difference is noise at n=12
+   vs n=84, and the control's own seed-to-seed spread (+0.293 at seed 1, +0.133 at
+   seed 7) is larger than the gap. The claim "no small model beats a few dozen lines
+   of policy" is *not* established; the honest claim is that none clearly exceeds it.
+
+3. **Calibration is the finding that survives noise, and it is the worst news.**
+   Control +0.225; granite exactly **0.000**; qwen3.5:2b **−0.200**, i.e. *more*
+   confident when wrong. This is finding 12 quantified — fluent accusations whose
+   confidence carries zero or inverted information. Prediction 3 confirmed.
+
+4. **State tracking degrades as the roster shrinks**, as predicted: granite named a
+   dead player 6 times, qwen3.5:2b 16 times, despite both being told the living roster
+   twice per prompt plus an explicit legal-choice list.
+
+5. **Prediction 5 mostly holds:** small-model Mafia leak rather than blend —
+   deception index 4.41 (smollm2) and 3.67 (gemma3), both far above 1.0.
+
+Two failure modes seen in the transcripts that no metric captures: llama3.2:1b broke
+character with an assistant refusal ("I cannot respond as Carol…"), and
+granite3.1-dense:2b as Mafia wrote *"bring us closer to our goal of outnumbering the
+remaining town members"* in a **public** day statement — night-channel reasoning
+leaked into speech. Both argue for a character-break counter.
+
+## 5c. NOT ESTABLISHED — the larger local tier
+
+The `local-tiers` arm (gpt-oss:20b resident, qwen3:4b) **did not produce usable data**
+and is recorded here as unfinished rather than reported.
+
+Both are reasoning models, and their reasoning length scales with prompt length. After
+two rounds of fixes — per-kind token budgets, Qwen3's `/no_think`, then decision-first
+field ordering — gpt-oss:20b still hit the token cap on 54% of replies and qwen3:4b on
+87%, at 21–23 s per call. Decision-first did help materially (gpt-oss field capture
+6/18 → 9/13, vote latency 91 s → 21 s), but "help" is not "clean", and at n=2 games
+the resulting det.lift of −0.333 on four accusations is noise.
+
+**What this actually shows is a harness limitation, not a model limitation.** A
+free-text `KEY: value` contract is the wrong integration for a reasoning model. The
+fix is one of: a constrained/JSON output mode so the decision cannot be crowded out;
+separate calls for decision and speech; or non-reasoning models in these seats. Until
+one of those is done, this repo has no measurement of whether a larger *local* model
+clears the control — which is the most interesting open question in it, and the reason
+Swiftlet's 35B was not worth an 18 GB download yet: the 20B seat would have hit the
+same wall.
+
 ## 6. Falsifiable predictions
 
 Stated with numbers so they can be wrong.
 
-1. **`small-local` clears detection chance but not the baseline.** det.lift between
-   0.00 and +0.20, against the baseline's +0.293.
-2. **`small-local` invalid-move rate exceeds 0.15**, mostly naming dead players, and
-   it gets worse as the roster shrinks — the point in the game where tracking matters
-   most.
-3. **Calibration gap near zero for `small-local`** (< 0.05, against the baseline's
-   +0.217) while its statements read fluently. This is finding 12's confident nonsense
-   showing up as a number.
+1. ~~**`small-local` clears detection chance but not the baseline.**~~ **MEASURED —
+   partly right, see 5b.** The 2B models land at +0.05 to +0.16 as predicted, but the
+   control at the paired seed is +0.133, not +0.293, so "clears chance but not the
+   baseline" is not what happened; the gap is inside the noise.
+2. ~~**`small-local` invalid-move rate exceeds 0.15.**~~ **MEASURED — right for 1B,
+   wrong for 2B (5b).** 0.51 at 1B, 0.03-0.12 at 2B. The real structure is a cliff
+   between the two, which this prediction missed.
+3. ~~**Calibration gap near zero for `small-local`.**~~ **MEASURED — confirmed, and
+   worse than predicted (5b).** granite exactly 0.000, qwen3.5:2b -0.200.
 4. **The ledger helps `small-local` and does little for frontier models.** `--context=ledger`
    over `--context=full`: +0.05 or better det.lift for 1–2B, within noise above ~30B.
    If the ledger helps frontier models *more*, my reading of finding 55 is wrong.
