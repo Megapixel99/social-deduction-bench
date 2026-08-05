@@ -263,6 +263,7 @@ class GameState {
         provider: p.provider,
         model: p.model,
         tier: p.tier ?? null,
+        contextMode: p.contextMode ?? null,
         role: p.role,
         faction: getRole(p.role).faction,
         seat: p.seat,

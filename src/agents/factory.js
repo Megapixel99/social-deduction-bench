@@ -40,7 +40,8 @@ function buildAgents(state, { contextMode, rng, outputMode = 'json', strictTarge
         playerName: player.name,
         model: player.model,
         baseUrl: player.baseUrl,
-        contextMode,
+        // A seat may pin its own context mode (`key@full`); otherwise follow the global.
+        contextMode: player.contextMode || contextMode,
         outputMode,
         strictTargets,
         rng,

@@ -41,10 +41,16 @@ class GameEngine {
     return a;
   }
 
-  /** A view with the render mode attached, which is what prompts read. */
+  /**
+   * A view with the render mode attached, which is what prompts read.
+   *
+   * The context mode comes from the AGENT, not from global config, so a single seat can
+   * run `full` among otherwise-`ledger` players (see config.js `key@context`). Reading it
+   * from the global here was what made run 008 unattributable.
+   */
   viewFor(name) {
     const view = this.state.viewFor(name);
-    view.contextMode = this.config.contextMode;
+    view.contextMode = this.agent(name).contextMode || this.config.contextMode;
     view.outputMode = this.config.outputMode;
     return view;
   }

@@ -296,7 +296,56 @@ Hardware for every run: Apple M1 Max, 64 GB, local Ollama. Raw logs in `results/
 - **Design consequence:** `--context=ledger` stays the default, now on evidence rather
   than on the inference from findings 55/10/50 that motivated it.
 
-## 011 — Isolate the context effect: one seat differs — QUEUED (design)
+## 009a — RESULT: ladder-small, 30 games — every model below chance
+
+- **Setup:** `--roster=ladder-small --games=30 --seed=7`. Seats: gemma3:1b, qwen3.5:2b,
+  granite3.2:2b, qwen3:4b, llama3.1:8b, 2× control. 12.5 GB resident. Town won **2 of 30**.
+- **RESULT:**
+
+  | model | tier | n | det.lift | decep. | consist | invalid | dead-player refs |
+  |---|---|---|---|---|---|---|---|
+  | **control** | baseline | 60 | **+0.076** | 0.262 | 0.784 | 0.000 | 0 |
+  | granite3.2:2b | small-local | 30 | −0.179 | 0.919 | 0.722 | 0.026 | 9 |
+  | **llama3.1:8b** | upper-mid | 30 | **−0.196** | 0.000 | 0.750 | **0.000** | **1** |
+  | gemma3:1b | small-local | 30 | −0.212 | 0.445 | 0.633 | 0.145 | 14 |
+  | qwen3:4b | mid-local | 30 | −0.229 | 0.917 | 0.971 | 0.050 | 8 |
+  | qwen3.5:2b | small-local | 30 | −0.320 | 2.332 | 0.647 | 0.191 | 35 |
+
+- **FINDING — with five model seats and no 20B, every model scores BELOW chance and only
+  the control is positive.** This is much starker than 007, where the field was half
+  control and included a 20B.
+- **FINDING — llama3.1:8b is the clean counterexample that kills the format excuse.**
+  invalid **0.000**, one dead-player reference in 30 games, perfect protocol compliance —
+  and det.lift **−0.196**. Its accusations are worse than picking a living player at
+  random. **Whatever is failing at 8B is not the response contract and not roster
+  tracking; it is the inference itself.** Every previous negative result had a plausible
+  format confound attached. This one does not.
+- **FINDING — town won 2 of 30.** A field of weak town players cannot convert. Combined
+  with 007 (13/60) and 008 (7/60), the pattern is that town's win rate tracks how good the
+  *field* is rather than any single seat, which is a property of the game and a reason the
+  per-turn metrics exist.
+- **Caveat:** qwen3.5:2b invalid 0.191 and gemma3:1b 0.145 — the first is over the gate,
+  the second on it. llama3.1:8b's `decep.` of 0.000 means it drew zero town accusations as
+  Mafia, which at 30 games and a 6.7% town win rate more likely reflects games ending
+  before suspicion could form than concealment skill.
+- **Limits:** one seed family, 30 games, one roster. n=30 per model is half of 007's.
+
+## 011 — Isolate the context effect: one seat differs — READY (harness built)
+
+- **Why:** 008 could not attribute its own result. It switched every seat from ledger to
+  full at once, the games diverged, and the rule-based control — which never reads the
+  rendered prompt — moved by −0.136, as much as the models did.
+- **BUILT:** context mode is now **per-seat**, not global. A roster entry may be written
+  `key@ledger` / `key@full`; unqualified seats follow `--context`. Verified: overrides
+  parse, an unknown mode is rejected at config load, and `engine.viewFor` reads the mode
+  off the agent rather than global config (which was the actual cause of 008's ambiguity).
+  Two rosters added: `ctx-one-full` and its mirror `ctx-one-ledger`.
+- **Setup:** duplicate seats differing only in context mode — `qwen` vs `qwen@full`,
+  `qwen3-4b` vs `qwen3-4b@full` — inside the *same games*. Trajectory divergence is then
+  shared by construction and cancels, instead of confounding the comparison.
+- **Expected:** if 008's raw −0.11 to −0.36 was mostly game difficulty, the within-game
+  gap here will be much smaller. If the ledger genuinely helps, the `@full` twin
+  underperforms its own `ledger` twin in the same games.
 
 - **Why:** 008 cannot attribute its own result, because both arms changed every seat at
   once and the games diverged. This is the fix.

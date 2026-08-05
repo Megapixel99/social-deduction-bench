@@ -209,6 +209,13 @@ const ROSTERS = {
    */
   'reasoning-vs-not': ['qwen3-4b', 'qwen3-4b', 'gemma3-4b', 'gemma3-4b', 'phi4-mini', 'llama3.2-3b', 'scripted'],
 
+  /**
+   * Experiment 011: everything on ledger except one seat, and the mirror. The odd seat
+   * is compared against its own duplicate inside the SAME games, so divergence is shared.
+   */
+  'ctx-one-full': ['qwen', 'qwen@full', 'qwen3-4b', 'qwen3-4b@full', 'gpt-oss-20b', 'scripted', 'scripted'],
+  'ctx-one-ledger': ['qwen@full', 'qwen', 'qwen3-4b@full', 'qwen3-4b', 'gpt-oss-20b', 'scripted', 'scripted'],
+
   /** Eight distinct mid-size models, one seat each — widest single-batch coverage. */
   wide: ['qwen2.5-3b', 'llama3.2-3b', 'gemma3-4b', 'granite-2b', 'exaone-2.4b', 'qwen3-4b', 'nemotron-4b', 'scripted'],
 
@@ -262,10 +269,23 @@ function buildSeats() {
   }
 
   const counts = {};
-  return roster.map((key, i) => {
+  return roster.map((rawKey, i) => {
+    /**
+     * `key@context` overrides the context mode for that seat alone — e.g.
+     * `qwen@full` among otherwise-ledger seats.
+     *
+     * This exists because run 008 could not attribute its own result: it switched every
+     * seat from ledger to full at once, so the games diverged and the rule-based control
+     * moved by as much as the models did. Varying ONE seat keeps trajectory divergence
+     * shared across all seats in the same game, where it cancels instead of confounding.
+     */
+    const [key, seatContext] = rawKey.split('@');
     const entry = MODELS[key];
     if (!entry) {
       throw new Error(`Unknown model "${key}". Available: ${Object.keys(MODELS).join(', ')}`);
+    }
+    if (seatContext && !['ledger', 'full'].includes(seatContext)) {
+      throw new Error(`Unknown context mode "${seatContext}" for seat "${key}". Use ledger or full.`);
     }
     // Same model in two seats gets a suffixed id so per-seat results stay separable
     // while the tier/model grouping still collapses them.
@@ -279,6 +299,8 @@ function buildSeats() {
       model: entry.model,
       tier: entry.tier,
       baseUrl: entry.baseUrl || null,
+      // null = follow the global --context setting
+      contextMode: seatContext || null,
     };
   });
 }
