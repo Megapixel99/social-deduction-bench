@@ -22,7 +22,7 @@ function banner() {
 |   measured per turn, separately from win rate.                 |
 +---------------------------------------------------------------+
   Seats:   ${seats}
-  Context: ${CONFIG.game.contextMode}   Rounds/day: ${CONFIG.game.discussionRounds}   Games: ${CONFIG.game.games}
+  Context: ${CONFIG.game.contextMode}   Output: ${CONFIG.game.outputMode}${CONFIG.game.strictTargets ? ' (strict targets)' : ''}   Rounds/day: ${CONFIG.game.discussionRounds}   Games: ${CONFIG.game.games}
 `;
 }
 
@@ -68,7 +68,12 @@ async function playOneGame(gameNumber, seedValue) {
     maxDays: CONFIG.game.maxDays,
   });
 
-  const agents = buildAgents(state, { contextMode: CONFIG.game.contextMode, rng });
+  const agents = buildAgents(state, {
+    contextMode: CONFIG.game.contextMode,
+    outputMode: CONFIG.game.outputMode,
+    strictTargets: CONFIG.game.strictTargets,
+    rng,
+  });
   const engine = new GameEngine(state, agents, CONFIG.game);
 
   console.log(`\n########## GAME ${gameNumber} (seed ${seedValue}) ##########`);
@@ -179,6 +184,10 @@ Rosters (choose one; default "test"):
 
 Game options:
   --context=ledger|full  how much record each agent sees (default ledger)
+  --output=json|text     json constrains decoding to a schema (default; required for
+                         reasoning models). text uses the KEY: value contract.
+  --strict-targets       enum-constrain targets to living players. Guarantees legal
+                         moves but zeroes the state-tracking metrics.
   --rounds=N             statements per player per day (default 1)
   --games=N              games to play in this session (default 1)
   --loop                 keep starting new batches until interrupted

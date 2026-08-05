@@ -40,7 +40,17 @@ const { renderContext } = require('../engine/ledger.js');
  * measures, and a truncated reply was destroying it outright. THINKING is recorded
  * for reading, never scored.
  */
-const FORMAT_RULES = `RESPONSE FORMAT — reply with these lines and nothing else. Do not use markdown.`;
+/**
+ * The stated format has to match the contract actually in force. Telling a model to
+ * emit `KEY: value` lines while the decoder is constrained to JSON is a contradiction,
+ * and contradictory instructions are exactly the kind of harness defect that gets
+ * recorded as a model failure.
+ */
+function formatRules(view) {
+  return view.outputMode === 'json'
+    ? 'RESPONSE FORMAT — reply with a single JSON object and nothing else. Use the lowercase form of each field name below as its key.'
+    : 'RESPONSE FORMAT — reply with these lines and nothing else. Do not use markdown.';
+}
 
 function baseSystemPrompt(view) {
   const total = view.living.length + view.dead.length;
@@ -91,7 +101,7 @@ Legal choices: ${legalTargets.join(', ')}
 
 ${guidance}
 
-${FORMAT_RULES}
+${formatRules(view)}
 TARGET: exactly one name from the legal choices
 THINKING: your private reasoning, two or three sentences`,
     expect: ['TARGET', 'THINKING'],
@@ -107,7 +117,7 @@ function mafiaChatPrompt(view, partners) {
 === NIGHT ${view.day} — PRIVATE MAFIA CHANNEL ===
 Only ${[view.you.name, ...partners].join(' and ')} can read this. Discuss who to kill and how to handle tomorrow's discussion.
 
-${FORMAT_RULES}
+${formatRules(view)}
 MESSAGE: what you say to your partner(s), one to three sentences
 THINKING: your private reasoning`,
     expect: ['MESSAGE', 'THINKING'],
@@ -145,7 +155,7 @@ function statementPrompt(view, round, totalRounds) {
 It is your turn to speak. Everyone alive will read your statement and your accusation.
 Living players you may name: ${others.join(', ')}
 
-${FORMAT_RULES}
+${formatRules(view)}
 SUSPECT: the player you accuse out loud (a name from the list above). Everyone sees this, and it goes on the record next to your later vote.
 CONFIDENCE: how strongly you are pushing this accusation, 0.0 to 1.0
 STATEMENT: what you say out loud, two to four sentences. Address the others directly and make a case.
@@ -167,7 +177,7 @@ Legal votes: ${others.join(', ')}
 
 You may vote differently from the suspect you named out loud if that serves you.
 
-${FORMAT_RULES}
+${formatRules(view)}
 VOTE: exactly one name from the legal votes
 THINKING: your private reasoning`,
     expect: ['VOTE', 'THINKING'],

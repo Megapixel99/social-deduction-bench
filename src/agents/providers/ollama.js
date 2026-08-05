@@ -41,7 +41,7 @@ class OllamaAgent extends BaseAgent {
     return out;
   }
 
-  async callModel(messages, { maxTokens } = {}) {
+  async callModel(messages, { maxTokens, schema } = {}) {
     const maxAttempts = 2;
     let last = { text: '', thinking: '', tokensUsed: 0 };
     const payloadMessages = this.applyReasoningControl(messages);
@@ -55,6 +55,10 @@ class OllamaAgent extends BaseAgent {
           stream: false,
           think: false,
           keep_alive: '30m',
+          // Ollama constrains decoding to this JSON schema. This is the fix for
+          // reasoning models: the grammar cannot emit a document missing a required
+          // property, so reasoning cannot crowd out the decision.
+          ...(schema ? { format: schema } : {}),
           options: {
             temperature: 0.8,
             num_predict: maxTokens || 1024,

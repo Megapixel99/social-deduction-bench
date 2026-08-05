@@ -15,12 +15,13 @@ class OpenAIAgent extends BaseAgent {
     this.client = new OpenAI({ apiKey: CONFIG.api.openai.apiKey });
   }
 
-  async callModel(messages, { maxTokens } = {}) {
+  async callModel(messages, { maxTokens, schema } = {}) {
     const response = await this.client.chat.completions.create({
       model: this.model,
       messages,
       max_tokens: maxTokens || 1024,
       temperature: 0.8,
+      ...(schema ? { response_format: jsonSchemaFormat(schema) } : {}),
     });
 
     const choice = response.choices[0];
@@ -65,6 +66,18 @@ class OpenAICompatibleAgent extends BaseAgent {
       tokensUsed: response.usage?.total_tokens || null,
     };
   }
+}
+
+/** OpenAI-style strict structured output wrapper. */
+function jsonSchemaFormat(schema) {
+  return {
+    type: 'json_schema',
+    json_schema: {
+      name: 'mafia_turn',
+      strict: true,
+      schema: { ...schema, additionalProperties: false },
+    },
+  };
 }
 
 module.exports = { OpenAIAgent, OpenAICompatibleAgent };

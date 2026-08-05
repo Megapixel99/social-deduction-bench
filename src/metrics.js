@@ -200,6 +200,8 @@ function computeMetrics(snapshot, agentSummaries) {
       // Non-zero means MAX_TOKENS in base-agent.js is too tight for this model and
       // its speech-channel results are understated.
       truncatedRate: round((a.truncated || 0) / total),
+      // Schema sent but reply was not JSON, so the provider ignored it.
+      schemaIgnoredRate: round((a.schemaIgnored || 0) / total),
       namedDeadPlayer: a.namedDeadPlayer,
       namedUnknownPlayer: a.namedUnknownPlayer,
       namedSelfIllegally: a.namedSelfIllegally,

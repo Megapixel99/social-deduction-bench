@@ -26,7 +26,7 @@ const PROVIDERS = {
  * here and the one in the state could drift apart, and every result would be
  * attributed to the wrong model.
  */
-function buildAgents(state, { contextMode, rng }) {
+function buildAgents(state, { contextMode, rng, outputMode = 'json', strictTargets = false }) {
   const agents = new Map();
 
   for (const player of state.players) {
@@ -41,6 +41,8 @@ function buildAgents(state, { contextMode, rng }) {
         model: player.model,
         baseUrl: player.baseUrl,
         contextMode,
+        outputMode,
+        strictTargets,
         rng,
       })
     );

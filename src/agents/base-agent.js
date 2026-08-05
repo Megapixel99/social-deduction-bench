@@ -1,4 +1,5 @@
 const { logApiCall, logAgentTurn } = require('../logger.js');
+const { schemaFor, fieldsFromJson, tryParseJson } = require('./schemas.js');
 
 /**
  * Output token budget per request kind, and why these numbers are what they are.
@@ -55,11 +56,13 @@ const MAX_TOKENS = {
  * of social deduction a small local model can actually do.
  */
 class BaseAgent {
-  constructor({ playerName, provider, model, contextMode = 'ledger' }) {
+  constructor({ playerName, provider, model, contextMode = 'ledger', outputMode = 'json', strictTargets = false }) {
     this.playerName = playerName;
     this.provider = provider;
     this.model = model;
     this.contextMode = contextMode;
+    this.outputMode = outputMode;
+    this.strictTargets = strictTargets;
 
     /** Rolling record of this agent's own private reasoning, fed back next turn. */
     this.notes = [];
@@ -71,6 +74,9 @@ class BaseAgent {
       apiErrors: 0,
       unparseable: 0,
       truncated: 0,
+      // Schema was sent but the reply was not valid JSON, so the text parser had to
+      // be used. Non-zero means the provider ignored the schema.
+      schemaIgnored: 0,
       namedDeadPlayer: 0,
       namedUnknownPlayer: 0,
       namedSelfIllegally: 0,
@@ -97,7 +103,7 @@ class BaseAgent {
    * @param {string} req.userPrompt
    * @param {string[]} req.expect       field names to extract, e.g. ['THINKING','VOTE']
    */
-  async ask({ kind, systemPrompt, userPrompt, expect }) {
+  async ask({ kind, systemPrompt, userPrompt, expect, legal }) {
     this.turnCount++;
     this.stats.calls++;
 
@@ -108,10 +114,17 @@ class BaseAgent {
 
     const maxTokens = MAX_TOKENS[kind] ?? MAX_TOKENS.default;
 
+    // A schema is offered to every provider; adapters that cannot use one ignore it and
+    // the text parser handles their reply. Both paths converge on the same field shape.
+    const schema =
+      this.outputMode === 'json'
+        ? schemaFor(expect, { legalNames: legal || [], strictTargets: this.strictTargets })
+        : null;
+
     const started = Date.now();
     let response;
     try {
-      response = await this.callModel(messages, { maxTokens });
+      response = await this.callModel(messages, { maxTokens, schema });
     } catch (err) {
       this.stats.apiErrors++;
       const detail = err.message || String(err);
@@ -140,7 +153,20 @@ class BaseAgent {
       latencyMs,
     });
 
-    const fields = parseFields(response.text, expect, response.thinking);
+    // JSON first when a schema was sent, text parsing otherwise or as a fallback.
+    let fields = {};
+    if (schema) {
+      const obj = tryParseJson(response.text);
+      if (obj) {
+        fields = fieldsFromJson(obj, expect);
+      } else {
+        this.stats.schemaIgnored++;
+        fields = parseFields(response.text, expect, response.thinking);
+      }
+    } else {
+      fields = parseFields(response.text, expect, response.thinking);
+    }
+
     const missing = expect.filter((f) => f !== 'THINKING' && !fields[f]);
     if (missing.length) this.stats.unparseable++;
 

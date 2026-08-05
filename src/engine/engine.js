@@ -45,6 +45,7 @@ class GameEngine {
   viewFor(name) {
     const view = this.state.viewFor(name);
     view.contextMode = this.config.contextMode;
+    view.outputMode = this.config.outputMode;
     return view;
   }
 

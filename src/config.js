@@ -237,6 +237,16 @@ const CONFIG = {
 
   game: {
     contextMode: opt('context', process.env.CONTEXT_MODE || 'ledger'),
+    /**
+     * "json" constrains decoding to a per-request JSON schema; "text" uses the
+     * KEY: value contract. JSON is the default because the text contract is
+     * structurally broken for reasoning models — see src/agents/schemas.js. Keep
+     * "text" available so the two are comparable rather than one silently replacing
+     * the other.
+     */
+    outputMode: opt('output', process.env.OUTPUT_MODE || 'json'),
+    /** Enum-constrain targets to living players. Off: it zeroes state-tracking metrics. */
+    strictTargets: flag('strict-targets') || process.env.STRICT_TARGETS === 'true',
     discussionRounds: parseInt(opt('rounds', process.env.DISCUSSION_ROUNDS || '1'), 10),
     maxDays: parseInt(opt('max-days', process.env.MAX_DAYS || '12'), 10),
     revealRoleOnDeath: (process.env.REVEAL_ROLE_ON_DEATH || 'true') !== 'false' && !flag('no-reveal'),
