@@ -53,9 +53,29 @@ const MODELS = {
    * record of why it is not there.
    */
   'gpt-oss-120b': { provider: 'ollama-cloud', model: process.env.CLOUD_MODEL_1 || 'gpt-oss:120b',          tier: 'large-open' },
-  nemotron:       { provider: 'ollama-cloud', model: process.env.CLOUD_MODEL_4 || 'nemotron-3-super:cloud', tier: 'large-open' },
+  nemotron:       { provider: 'ollama-cloud', model: process.env.CLOUD_MODEL_4 || 'nemotron-3-super:cloud', tier: 'large-open' }, // ~168 s/call — too slow for a long batch
+  /**
+   * Probed against the live cloud catalogue 2026-08-06 (not the stale five inherited from
+   * the CTF config). Cloud seats cost NO local memory and calls are sequential, so a
+   * roster can be entirely hosted regardless of what the machine has free.
+   *
+   * gemma4 and minimax-m3 wrap their JSON in a ```json fence; `tryParseJson` strips
+   * fences, so they parse fine — an early probe that used a bare JSON.parse reported them
+   * as broken, which was the probe's fault and not the models'.
+   */
+  'gemma4-cloud':    { provider: 'ollama-cloud', model: 'gemma4',           tier: 'large-open' },
+  'minimax-m3':      { provider: 'ollama-cloud', model: 'minimax-m3',       tier: 'large-open' },
+  'nemotron-ultra':  { provider: 'ollama-cloud', model: 'nemotron-3-ultra', tier: 'large-open' },
+
   // Unavailable on this account — do not put these in a roster.
   glm:      { provider: 'ollama-cloud', model: 'glm-5.1:cloud',                  tier: 'large-open', unavailable: 'requires a paid Ollama subscription' },
+  'glm-5.2':  { provider: 'ollama-cloud', model: 'glm-5.2',            tier: 'large-open', unavailable: 'requires a paid Ollama subscription' },
+  'kimi-k3':  { provider: 'ollama-cloud', model: 'kimi-k3',            tier: 'large-open', unavailable: 'requires a paid Ollama subscription' },
+  'kimi-k2.6': { provider: 'ollama-cloud', model: 'kimi-k2.6',         tier: 'large-open', unavailable: 'requires a paid Ollama subscription' },
+  'qwen3.5-cloud': { provider: 'ollama-cloud', model: 'qwen3.5',       tier: 'large-open', unavailable: 'requires a paid Ollama subscription' },
+  'minimax-m2.7': { provider: 'ollama-cloud', model: 'minimax-m2.7',   tier: 'large-open', unavailable: 'requires a paid Ollama subscription' },
+  'deepseek-v4-pro': { provider: 'ollama-cloud', model: 'deepseek-v4-pro', tier: 'large-open', unavailable: 'requires a paid Ollama subscription' },
+  'deepseek-v4-flash': { provider: 'ollama-cloud', model: 'deepseek-v4-flash', tier: 'large-open', unavailable: 'requires a paid Ollama subscription' },
   'gemini3': { provider: 'ollama-cloud', model: 'gemini-3-flash-preview:cloud',  tier: 'large-open', unavailable: 'retired 2026-07-15' },
   rnj:      { provider: 'ollama-cloud', model: 'rnj-1:8b-cloud',                 tier: 'large-open', unavailable: 'retired 2026-06-30' },
 
@@ -286,12 +306,58 @@ const ROSTERS = {
    * batch cannot be compared to 007-011 except through the rule-based control, which is
    * the same policy in both and therefore the only common reference left.
    *
-   * The price is distinct models: **three, not ten**. What it buys is n. Over 100 games
+   * The price is distinct models: **one plus the control**. nemotron was dropped after
+   * measurement, not preference: at ~40 s/call versus gpt-oss:120b's ~7 s it consumed
+   * most of the wall-clock, and it was also the worst model for truncation (11% strict
+   * decision capture), so it cost the most and contributed the least trustworthy data.
+   * `hosted-two-model` keeps it for when time is not the constraint.
+   *
+   * What remains is still a real experiment, and arguably the one that matters most while
+   * the frontier accounts are unfunded: **does the best hosted model available beat a few
+   * dozen lines of rule-based policy?** At 100 games gpt-oss:120b reaches n~800
+   * accusations against the control's n~200 — the cleanest read on open question 4 that
+   * this machine can produce. What it buys is n. Over 100 games
    * gpt-oss:120b reaches n~400 accusations and nemotron n~300 — far past the +/-0.09 noise
    * floor, and enough to settle whether a large hosted model clears the control, which is
    * the closest available proxy for open question 4 while the frontier accounts are unfunded.
    */
+  /**
+   * All-cloud, four distinct models plus the control, chosen on MEASURED latency so a
+   * 100-game batch actually finishes: gemma4 0.5 s, minimax-m3 2.8 s, gpt-oss:120b 3.7 s.
+   * nemotron-3-super (168 s/call) and nemotron-3-ultra (40 s) are excluded — one seat of
+   * nemotron-ultra alone costs more wall-clock than every other seat combined, and the
+   * earlier three-seat nemotron roster made night 1 take ten minutes.
+   *
+   * Seat counts come from latency measured UNDER LOAD, not from single-call probes.
+   * The probe said minimax-m3 was 2.8 s; in a running game it averages **19.4 s**, which
+   * would have made a 100-game batch ~23 hours. Same error as DEFECT 5 — a figure taken
+   * from a toy request is not a calibration. Measured in-game: gemma4 2.0 s,
+   * gpt-oss:120b 6.0 s, minimax-m3 19.4 s.
+   *
+   * So the fast models take the seats and minimax-m3 keeps one, for coverage rather than
+   * volume: ~4.5 min/game, 100 games in ~7 hours, with gpt-oss:120b at n~400 accusations
+   * against the control's n~200.
+   */
+  'cloud-ten': [
+    'gpt-oss-120b', 'gpt-oss-120b', 'gpt-oss-120b', 'gpt-oss-120b',
+    'gemma4-cloud', 'gemma4-cloud', 'gemma4-cloud',
+    'minimax-m3',
+    'scripted', 'scripted',
+  ],
+
   'hosted-heavy': [
+    'gpt-oss-120b', 'gpt-oss-120b', 'gpt-oss-120b', 'gpt-oss-120b',
+    'gpt-oss-120b', 'gpt-oss-120b', 'gpt-oss-120b', 'gpt-oss-120b',
+    'scripted', 'scripted',
+  ],
+
+  /**
+   * Same shape but keeping nemotron as a second model, for when wall-clock is not the
+   * binding constraint. At ~40 s/call against gpt-oss:120b's ~7 s, three nemotron seats
+   * made a 100-game batch take days rather than hours (measured: night 1 alone ran ~10
+   * minutes), so it is off the default path.
+   */
+  'hosted-two-model': [
     'gpt-oss-120b', 'gpt-oss-120b', 'gpt-oss-120b', 'gpt-oss-120b', 'gpt-oss-120b',
     'nemotron', 'nemotron', 'nemotron',
     'scripted', 'scripted',
