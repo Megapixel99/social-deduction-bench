@@ -1,6 +1,6 @@
 const { PHASE } = require('./state.js');
 const { FACTION, NIGHT_ORDER, getRole } = require('./roles.js');
-const { nightPrompt, mafiaChatPrompt, statementPrompt, votePrompt } = require('../agents/prompts.js');
+const { nightPrompt, mafiaChatPrompt, statementPrompt, defensePrompt, votePrompt } = require('../agents/prompts.js');
 const { logGameEvent, logPhase } = require('../logger.js');
 
 /**
@@ -86,6 +86,7 @@ class GameEngine {
       if (this.settle()) break;
 
       await this.runDiscussion();
+      if (this.config.defense !== false) await this.runDefense();
       await this.runVote();
       await this.runExecution();
       if (this.settle()) break;
@@ -404,6 +405,60 @@ class GameEngine {
     return mafiaAmong / others.length;
   }
 
+  /**
+   * The most-accused living player answers the room before votes are cast.
+   *
+   * Whether the defense worked is recorded so persuasion becomes measurable: the accused
+   * was the vote favourite when they stood up, so surviving the vote is a real signal
+   * rather than an anecdote.
+   */
+  async runDefense() {
+    const s = this.state;
+    const today = s.suspicions.filter((x) => x.day === s.day);
+    if (!today.length) return;
+
+    const tally = {};
+    for (const x of today) if (s.player(x.suspect).alive) tally[x.suspect] = (tally[x.suspect] || 0) + 1;
+    if (!Object.keys(tally).length) return;
+
+    const top = Math.max(...Object.values(tally));
+    const tied = Object.keys(tally).filter((n) => tally[n] === top);
+    // A tie means the room has not converged, so nobody is on the spot yet.
+    if (tied.length !== 1) return;
+
+    const accused = s.player(tied[0]);
+    const accusers = today
+      .filter((x) => x.suspect === accused.name)
+      .map((x) => ({
+        actor: x.actor,
+        quote: (s.publicLog.find((e) => e.type === 'statement' && e.day === s.day && e.actor === x.actor)?.text || '')
+          .replace(/\s+/g, ' ')
+          .slice(0, 180),
+      }));
+
+    const view = this.viewFor(accused.name);
+    const { systemPrompt, userPrompt, expect } = defensePrompt(view, accusers);
+    const agent = this.agent(accused.name);
+    const { fields } = await agent.ask({
+      kind: 'defense', day: s.day, phase: s.phase, systemPrompt, userPrompt, expect,
+      view, legal: s.livingNames().filter((n) => n !== accused.name),
+    });
+    agent.addNote(s.day, fields.THINKING);
+
+    const text = fields.STATEMENT || '(says nothing in their defense)';
+    s.addPublic({ type: 'defense', actor: accused.name, text });
+    s.defenses.push({
+      day: s.day,
+      accused: accused.name,
+      accusedIsMafia: s.isMafia(accused.name),
+      accusationsAgainst: top,
+      accusers: accusers.map((a) => a.actor),
+      // Filled in by runExecution once the vote resolves.
+      survived: null,
+    });
+    console.log(`  [defense] ${accused.name}: ${text}`);
+  }
+
   // --- vote ---------------------------------------------------------------
 
   async runVote() {
@@ -491,9 +546,15 @@ class GameEngine {
     if (tied.length > 1) {
       // A tie eliminating nobody keeps the vote meaningful: a Mafia bloc that only
       // manages to split the town has not won the day.
+      const dTie = s.defenses.find((x) => x.day === s.day && x.survived === null);
+      if (dTie) dTie.survived = true;
       this.announce(`The vote is tied (${summary}). Nobody is eliminated.`, { tally });
       return;
     }
+
+    // Close out today's defense: did the room change its mind?
+    const d = s.defenses.find((x) => x.day === s.day && x.survived === null);
+    if (d) d.survived = tied[0] !== d.accused;
 
     const victim = s.kill(tied[0], 'execution');
     const roleNote = s.revealRoleOnDeath ? ` They were the ${getRole(victim.role).name}.` : '';

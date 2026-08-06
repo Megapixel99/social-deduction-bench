@@ -164,6 +164,39 @@ THINKING: your private reasoning — who you think is Mafia and what you wanted 
   };
 }
 
+/**
+ * Defense phase: the player the room is converging on gets to answer before the vote.
+ *
+ * Without this the game had no persuasion at all. Each player spoke once and then voted,
+ * so an accused player could never respond to the case against them — which removes the
+ * single most characteristic exchange in Mafia and makes the discussion a poll rather
+ * than an argument. It also removes the only mechanism by which a *wrongly* accused town
+ * player can save themselves, which systematically favours the Mafia.
+ *
+ * The accused is shown exactly who named them and what was said, so the reply is a
+ * rebuttal of specific claims rather than a generic protest.
+ */
+function defensePrompt(view, accusers) {
+  const lines = accusers.map((a) => `  - ${a.actor} accused you${a.quote ? `: "${a.quote}"` : ''}`);
+  return {
+    systemPrompt: baseSystemPrompt(view),
+    userPrompt: `${renderContext(view, view.contextMode)}
+
+=== DAY ${view.day} — YOUR DEFENSE ===
+The room is converging on YOU. ${accusers.length} player(s) named you today:
+${lines.join('\n')}
+
+Everyone votes immediately after you speak, so this is your one chance to change their
+minds. Answer the specific claims against you, and give the town a better suspect if you
+have one${view.you.faction === 'mafia' ? '. You are Mafia: do not confess, and do not point at a partner' : ''}.
+
+${formatRules(view)}
+STATEMENT: your defense, two to four sentences, addressed to the room
+THINKING: your private reasoning — what you think will actually move votes. Nobody else sees this.`,
+    expect: ['STATEMENT', 'THINKING'],
+  };
+}
+
 /** Day vote. */
 function votePrompt(view) {
   const others = view.living.filter((n) => n !== view.you.name);
@@ -184,4 +217,4 @@ THINKING: your private reasoning`,
   };
 }
 
-module.exports = { baseSystemPrompt, nightPrompt, mafiaChatPrompt, statementPrompt, votePrompt };
+module.exports = { baseSystemPrompt, nightPrompt, mafiaChatPrompt, statementPrompt, defensePrompt, votePrompt };

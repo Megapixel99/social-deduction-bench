@@ -25,6 +25,7 @@ const { schemaFor, fieldsFromJson, tryParseJson } = require('./schemas.js');
 
 const MAX_TOKENS = {
   statement: 2200,
+  defense: 2200,
   mafia_chat: 800,
   vote: 900,
   night_kill: 900,

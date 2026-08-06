@@ -61,6 +61,8 @@ class ScriptedAgent extends BaseAgent {
         return this.statement(view);
       case 'vote':
         return this.vote(view);
+      case 'defense':
+        return this.defense(view);
       case 'mafia_chat':
         return this.mafiaChat(view);
       case 'night_kill':
@@ -201,6 +203,43 @@ class ScriptedAgent extends BaseAgent {
       `Nothing has changed my mind about ${suspect}. ${reason}. I am voting accordingly.`,
     ];
     return this.rng.pick(templates);
+  }
+
+  /**
+   * Defend against the room's consensus.
+   *
+   * The control has to play every phase the models play, or its numbers are not a
+   * comparison. Without this it returned no STATEMENT and stood mute while accused,
+   * which would have understated the baseline on exactly the metric the defense phase
+   * exists to measure.
+   *
+   * The policy is the strongest simple one available: redirect to the best alternative
+   * suspect the public record supports, citing the same voting-record evidence the
+   * accusation policy uses.
+   */
+  defense(view) {
+    const scores = this.scores(view);
+    // Whoever accused me is not a credible alternative to offer, so prefer someone else.
+    const accusedMe = new Set(
+      view.suspicions.filter((x) => x.suspect === view.you.name).map((x) => x.actor)
+    );
+    const pool = Object.keys(scores).filter((n) => !accusedMe.has(n));
+    const pick = (pool.length ? pool : Object.keys(scores)).sort((a, b) => scores[b] - scores[a])[0];
+
+    if (!pick) {
+      return {
+        STATEMENT: 'I have no case to answer beyond a hunch. Nobody has produced a vote or a contradiction against me.',
+        THINKING: 'No alternative suspect available; deny and point at the absence of evidence.',
+      };
+    }
+
+    const reason = this.reasonFor(view, pick);
+    return {
+      STATEMENT:
+        `The case against me is a hunch, not a record — nobody has shown a vote or a contradiction. ` +
+        `If you want evidence, look at ${pick}: ${reason}. Voting me out costs you a day and tells you nothing.`,
+      THINKING: `Accused by ${[...accusedMe].join(', ') || 'the room'}. Redirecting to ${pick} (score ${scores[pick]?.toFixed?.(1)}).`,
+    };
   }
 
   vote(view) {

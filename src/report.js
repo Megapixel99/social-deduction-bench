@@ -195,6 +195,18 @@ function renderTranscript(game, turnIndex) {
       }
       if (t?.fields?.THINKING) out.push(`- Private reasoning: ${oneLine(t.fields.THINKING)}`);
       out.push('');
+    } else if (e.type === 'defense') {
+      const t = nextTurn(e.actor, 'defense');
+      const d = (snap.defenses || []).find((x) => x.day === e.day && x.accused === e.actor);
+      out.push(`### 🛡 ${e.actor} DEFENDS — accused by ${d ? d.accusers.join(', ') : 'the room'}`);
+      out.push('');
+      out.push(`> ${e.text.replace(/\n+/g, ' ')}`);
+      out.push('');
+      if (d && d.survived !== null) {
+        out.push(`- Outcome: **${d.survived ? 'survived the vote — the defense worked' : 'voted out anyway'}**`);
+      }
+      if (t?.fields?.THINKING) out.push(`- Private reasoning: ${oneLine(t.fields.THINKING)}`);
+      out.push('');
     } else if (e.type === 'vote') {
       const t = nextTurn(e.actor, 'vote');
       const v = (snap.votes || []).find((x) => x.day === e.day && x.voter === e.actor);
@@ -206,6 +218,21 @@ function renderTranscript(game, turnIndex) {
       out.push('');
       out.push(`**${e.text}**`);
       out.push('');
+    }
+  }
+
+  const defs = (snap.defenses || []).filter((d) => d.survived !== null);
+  if (defs.length) {
+    out.push('');
+    out.push('## Persuasion');
+    out.push('');
+    out.push('Each defense was given by the player the room had converged on, so surviving the vote means the defense moved votes.');
+    out.push('');
+    for (const d of defs) {
+      out.push(
+        `- Day ${d.day}: **${d.accused}** (${d.accusedIsMafia ? 'Mafia' : 'town'}) faced ` +
+          `${d.accusationsAgainst} accusation(s) → **${d.survived ? 'survived' : 'voted out'}**`
+      );
     }
   }
 

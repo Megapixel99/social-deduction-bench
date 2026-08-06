@@ -85,6 +85,13 @@ class GameState {
      */
     this.suspicions = [];
 
+    /**
+     * Defense record: { day, accused, accusedIsMafia, accusationsAgainst, accusers,
+     * survived }. The accused was the vote favourite when they spoke, so `survived` is a
+     * direct measure of whether the defense moved votes.
+     */
+    this.defenses = [];
+
     /** Protocol failures: { day, phase, actor, kind, detail }. */
     this.violations = [];
 
@@ -276,6 +283,7 @@ class GameState {
       nightActions: this.nightActions,
       votes: this.votes,
       suspicions: this.suspicions,
+      defenses: this.defenses,
       violations: this.violations,
     };
   }

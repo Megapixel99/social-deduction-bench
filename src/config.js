@@ -435,6 +435,8 @@ const CONFIG = {
      */
     memBudgetGb: parseFloat(opt('mem-budget', process.env.MEM_BUDGET_GB || '40')),
     discussionRounds: parseInt(opt('rounds', process.env.DISCUSSION_ROUNDS || '1'), 10),
+    /** Defense phase before the vote. On by default; --no-defense disables it. */
+    defense: !flag('no-defense') && process.env.DEFENSE !== 'false',
     maxDays: parseInt(opt('max-days', process.env.MAX_DAYS || '12'), 10),
     revealRoleOnDeath: (process.env.REVEAL_ROLE_ON_DEATH || 'true') !== 'false' && !flag('no-reveal'),
     seed: opt('seed', process.env.SEED || ''),

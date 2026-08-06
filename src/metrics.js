@@ -243,6 +243,18 @@ function computeMetrics(snapshot, agentSummaries) {
     perPlayer,
     protocol,
     violations: summariseViolations(snapshot.violations),
+    /**
+     * Persuasion: the accused was the vote favourite when they spoke, so surviving is a
+     * measure of whether the defense moved votes. Reported per faction because a Mafia
+     * talking its way out and a villager clearing themselves are different results.
+     */
+    defenses: (() => {
+      const d = snapshot.defenses || [];
+      const done = d.filter((x) => x.survived !== null);
+      const by = (f) => done.filter((x) => (f === 'mafia' ? x.accusedIsMafia : !x.accusedIsMafia));
+      const rate = (arr) => (arr.length ? round(arr.filter((x) => x.survived).length / arr.length) : null);
+      return { total: done.length, survivalRate: rate(done), mafiaSurvivalRate: rate(by('mafia')), townSurvivalRate: rate(by('town')) };
+    })(),
   };
 }
 
