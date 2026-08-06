@@ -37,11 +37,30 @@ cheapest way to find out which half a small model can do.
 The private-vs-public comparison comes from the **vote**, not from THINKING: talk is
 cheap, votes are costly, and the gap between them is the classic Mafia tell.
 
+### The defense phase (added late; read before changing the day cycle)
+
+For most of this project a day was: everyone speaks once, everyone votes. That made the
+discussion a **poll rather than an argument** — an accused player could never answer the
+case against them, which removes Mafia's most characteristic exchange *and* the only way
+a wrongly accused town player can save themselves. It therefore favoured the Mafia
+structurally, which is a candidate explanation for town winning 1 of 18 in run 015.
+
+Now, between discussion and the vote, the single most-accused living player is shown who
+named them and what each said, and replies to the room. Accusation ties are skipped: the
+room has not converged, so nobody is on the spot.
+
+**Why it is measurable:** the accused was the vote favourite when they stood up, so
+`survived` is direct evidence the defense moved votes. Reported per faction — a Mafia
+talking its way out and a villager clearing themselves are different results and must
+never be pooled. `--no-defense` restores the old behaviour, which makes
+defense-vs-no-defense a clean paired experiment at the same seed.
+
 ## Architecture
 
 ```
 src/
-  index.js            CLI, batch runner, leaderboard
+  index.js            CLI, batch runner, leaderboard, memory preflight
+  report.js           logs -> transcripts, per-model reasoning, dataset.jsonl
   config.js           model registry (39 entries), named rosters, seat assignment
   logger.js           session logs; atomic writes, JSONL for API calls
   metrics.js          per-turn luck-corrected metrics + aggregation
@@ -49,7 +68,7 @@ src/
     roles.js          role data, night-action order, setups by player count
     state.js          game state AND the visibility rules
     ledger.js         context rendering: derived ledger vs raw transcript
-    engine.js         phase machine; adjudicates every model output
+    engine.js         phase machine (night/dawn/discussion/DEFENSE/vote/execution)
     rng.js            seeded PRNG; any game replays exactly
   agents/
     base-agent.js     model call, token budgets, field parsing, name resolution
@@ -84,6 +103,11 @@ results/              raw logs behind every number in RESULTS.md
    Tuning prompt *content* per model would make the leaderboard a measure of my prompt
    engineering.
 5. **Nothing is enum-constrained that a metric depends on.** See DEFECT 8's design note.
+6. **The rule-based control plays every phase the models play.** When the defense phase
+   was added, `ScriptedAgent` had no policy for it and stood mute while accused — which
+   would have understated the baseline on precisely the metric the phase exists to
+   measure. A control that skips a phase is not a control. Any new request kind needs a
+   `scripted-player.js` case in the same change.
 
 ## Conventions
 
@@ -268,6 +292,17 @@ npm run test-game        # rule-based players; no keys, no GPU, seconds
 node src/index.js --help
 ```
 
+**Local inference is currently broken on this machine** (as of 2026-08-06): Ollama's
+llama runner segfaults on load (`exit status 2`) with ~0.4 GB free and swap at 51 of
+52 GB, from processes outside this project. A 2.5 GB model will not load and restarting
+the server does not help. Until memory is freed, only **hosted** rosters run — use
+`hosted-heavy` (5x gpt-oss:120b + 3x nemotron + 2x control, zero local memory). Losing
+the local anchor means such a batch is comparable to runs 007-011 **only through the
+rule-based control**, which is the same fixed policy in both.
+
+Latency note for sizing batches: `nemotron-3-super:cloud` averages **~40 s/call** and is
+the pacing seat in any roster containing it; `gpt-oss:120b` is ~7 s.
+
 Local runs need `ollama serve`. Batches must be run **sequentially** — two concurrent
 Ollama batches thrash model loading and the latency figures become an artefact of
 eviction rather than a property of the model. `results/` and `RESULTS.md` record what
@@ -299,6 +334,23 @@ to start over `--mem-budget` (default 40). Current rosters:
 into three batches that share `llama3.1-8b` and `qwen3-4b` as **anchors at the same
 seed**, so the large models are comparable *through* the anchors (a common-reference
 design) without ever being co-resident.
+
+## Reports
+
+`node src/report.js` reads the newest session containing a finished game and writes:
+
+- `reports/transcripts/game-NNN.md` — one game as narrative: night actions with private
+  reasoning, each statement beside its author's `THINKING` and accusation (marked
+  correct/wrong), defenses with their outcome, votes flagged when they diverge from the
+  stated accusation, and a ground-truth role header labelled reader-only.
+- `reports/reasoning/<model>.md` — every trace one model produced, grouped by request
+  kind, annotated against whether the decision it justified was right.
+- `reports/summary.md` / `.json` — leaderboard with `n` on every row.
+- `reports/dataset.jsonl` — one flat row per model call.
+
+The emphasis is deliberate: the CTF pipeline centred on the command stream, this one
+centres on **reasoning**, because the benchmark's claim is only auditable if a reader can
+see what a model privately thought beside what it said and how it then voted.
 
 ## Reading the results safely
 
@@ -336,5 +388,8 @@ Noise floor: **±0.09 at n=30**, measured from identical anchor models across 00
    `scale-vs-control` (gpt-oss:120b vs gpt-oss:20b, same family, 6x parameters), which
    measures whether scale buys detection but says nothing about frontier models. **This
    remains the check that validates every other number in RESULTS.md.**
-5. **Swiftlet's 35B/80B streamed tier.** Deferred deliberately while the output contract
+5. **Does the defense phase change town's win rate?** New and unmeasured. `--no-defense`
+   at the same seed is the paired arm. Town won 1/18 in run 015 with no rebuttal
+   available, so the effect could be large.
+6. **Swiftlet's 35B/80B streamed tier.** Deferred deliberately while the output contract
    was broken, since the resident 20B hit that wall first. Now worth the 18 GB.
