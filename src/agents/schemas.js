@@ -143,6 +143,29 @@ function tryParseJson(text) {
     // fall through to a brace scan
   }
 
+  /**
+   * Salvage a TRUNCATED JSON document.
+   *
+   * DEFECT 17. Constrained decoding guarantees the schema's shape, not that generation
+   * finishes: when the token budget runs out mid-string the document is unparseable in
+   * its entirety, so every field is lost — including the decision sitting complete at
+   * the front. Measured on run 015: nemotron-3-super lost **50%** of its replies this
+   * way, and the resulting 0.281 "invalid move rate" was mostly truncation, not the
+   * model failing to choose.
+   *
+   * This also silently voided the earlier fix. Decision-first field ordering was added
+   * so a truncated reply would still carry the move — true for the `KEY: value` contract,
+   * false for JSON, where a cut anywhere invalidates the whole document. **Switching
+   * contracts retired a mitigation without retiring the problem it solved**, and nothing
+   * re-checked the assumption.
+   *
+   * So: close whatever is still open — an unterminated string, then any open brackets —
+   * and re-parse. Fields completed before the cut survive; the one being written when
+   * the budget ran out is dropped, which is the correct outcome for a partial value.
+   */
+  const salvaged = salvageTruncatedJson(body);
+  if (salvaged) return salvaged;
+
   // First balanced {...} in the reply, respecting strings and escapes so a brace
   // inside a statement does not end the scan early.
   const start = body.indexOf('{');
@@ -173,4 +196,45 @@ function tryParseJson(text) {
   return null;
 }
 
-module.exports = { schemaFor, fieldsFromJson, tryParseJson, FIELD_SPEC };
+/**
+ * Repair a JSON document cut off mid-generation. Returns the parsed object, or null if
+ * the text is not recoverable (not truncation — genuinely malformed).
+ */
+function salvageTruncatedJson(text) {
+  if (!text.startsWith('{')) return null;
+
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+  const stack = [];
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (esc) { esc = false; continue; }
+    if (ch === '\\') { esc = true; continue; }
+    if (ch === '"') { inStr = !inStr; continue; }
+    if (inStr) continue;
+    if (ch === '{' || ch === '[') { stack.push(ch); depth++; }
+    else if (ch === '}' || ch === ']') { stack.pop(); depth--; }
+  }
+
+  // A complete document has nothing open; nothing to salvage.
+  if (!inStr && depth === 0) return null;
+
+  let repaired = text;
+  if (inStr) repaired += '"';
+  // Drop a trailing partial key/value pair so the close is syntactically valid.
+  repaired = repaired.replace(/,\s*"[^"]*"\s*:?\s*$/, '').replace(/,\s*$/, '');
+  if (!repaired.endsWith('"') && /:\s*$/.test(repaired)) repaired = repaired.replace(/\s*"[^"]*"\s*:\s*$/, '');
+  for (let i = stack.length - 1; i >= 0; i--) repaired += stack[i] === '{' ? '}' : ']';
+
+  try {
+    const parsed = JSON.parse(repaired);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+module.exports = { schemaFor, fieldsFromJson, tryParseJson, salvageTruncatedJson, FIELD_SPEC };

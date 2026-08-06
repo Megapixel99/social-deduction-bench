@@ -11,6 +11,7 @@
 
 const assert = require('assert');
 const { parseFields, matchName } = require('../src/agents/base-agent.js');
+const { salvageTruncatedJson, tryParseJson, fieldsFromJson } = require('../src/agents/schemas.js');
 const { GameState } = require('../src/engine/state.js');
 const { Rng } = require('../src/engine/rng.js');
 const { renderContext } = require('../src/engine/ledger.js');
@@ -100,6 +101,37 @@ check('format ignored entirely still yields a statement, never a decision', () =
 check('empty response yields nothing', () => {
   const f = parseFields('', ['THINKING', 'VOTE']);
   assert.deepStrictEqual(f, {});
+});
+
+// ============================================================================
+section('Truncated-JSON salvage (DEFECT 17)');
+
+check('recovers the decision from a reply cut mid-string', () => {
+  // Exactly the shape run 015 produced: valid prefix, cut inside `statement`.
+  const cut = '{\n  "suspect": "Bob",\n  "confidence": 0.7,\n  "statement": "Everyone, look at the voting rec';
+  const obj = tryParseJson(cut);
+  assert.ok(obj, 'truncated document should be salvageable');
+  const f = fieldsFromJson(obj, ['SUSPECT', 'CONFIDENCE', 'STATEMENT', 'THINKING']);
+  assert.strictEqual(f.SUSPECT, 'Bob', 'the decision must survive the cut');
+  assert.strictEqual(f.CONFIDENCE, 0.7);
+});
+
+check('a complete document is not touched by the salvager', () => {
+  assert.strictEqual(salvageTruncatedJson('{"vote":"Carol","thinking":"ok"}'), null);
+});
+
+check('genuinely malformed text is rejected, not guessed at', () => {
+  assert.strictEqual(salvageTruncatedJson('not json at all'), null);
+  assert.strictEqual(tryParseJson('I think Bob is lying.'), null);
+});
+
+check('MUTATION: without the salvager the decision is lost', () => {
+  // If this ever passes, the salvage path is not the thing doing the work.
+  const cut = '{"vote": "Dave", "thinking": "Dave has been evas';
+  let strict = null;
+  try { strict = JSON.parse(cut); } catch { /* expected */ }
+  assert.strictEqual(strict, null, 'strict parse must fail on this input');
+  assert.strictEqual(fieldsFromJson(tryParseJson(cut), ['VOTE', 'THINKING']).VOTE, 'Dave');
 });
 
 // ============================================================================

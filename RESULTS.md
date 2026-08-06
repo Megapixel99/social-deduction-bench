@@ -589,3 +589,36 @@ Hardware for every run: Apple M1 Max, 64 GB, local Ollama. Raw logs in `results/
   granite3.1-dense:2b, exaone3.5:2.4b, gemma3:1b, and the rule-based control. **The
   20B-vs-120B same-family comparison is lost from this batch** and belongs in
   `scale-vs-control`, where it fits.
+
+## 015 — 100-game ten-model batch — STOPPED at 43 games (DEFECT 17) — 2026-08-05
+
+- **Setup:** `--roster=ten-model --games=100 --seed=7`, ten seats (1B to 120B plus the
+  rule-based control), after DEFECT 16 fixed the memory problem. Ran clean on memory:
+  Ollama held 9-11 GB throughout, no eviction.
+- **STOPPED at 43 games** on discovering DEFECT 17. The interim table was not measuring
+  the models: four of nine seats sat above the 0.15 invalid gate, and re-analysis showed
+  that was truncated JSON being discarded, not models failing to choose.
+- **Re-analysis of the captured `api.jsonl` (43 games, no games re-run):**
+
+  | model | calls | decision captured, before → after salvage | recovered |
+  |---|---|---|---|
+  | nemotron-3-super | 227 | 16% → **55%** | +88 |
+  | qwen3.5:2b | 59 | 2% → **88%** | +51 |
+  | gpt-oss:120b | 256 | 86% → 91% | +14 |
+  | gemma3:1b | 100 | 96% → 100% | +4 |
+  | exaone3.5:2.4b, qwen3:4b, granite3.1-dense:2b, llama3.1:8b, qwen2.5:3b | 365 | 100% → 100% | 0 |
+
+- **FINDING — five of nine models were never affected.** Their run-015 rows were real;
+  llama3.1:8b at +0.013 and the control at +0.001 stand. The two badly affected models are
+  the two most verbose, which is the mechanism: they hit the cap mid-`statement`.
+- **What re-analysis CANNOT do, stated plainly:** it corrects the diagnosis, not the games.
+  Those 43 games played out with seeded random moves substituted for the 157 lost
+  decisions, so their trajectories are what they are and `det.lift` cannot be recomputed
+  from salvaged decisions — a different vote produces a different game.
+- **Fixed:** salvage parser plus the statement budget raised 1200 → 2200 (10-player prompts
+  produce longer statements than the 7-player runs the budget was tuned on). Four checks
+  added, including a mutation test.
+- **Method note — three wrong hypotheses before the right one.** Roster size, then empty
+  fields, then refusals; each was consistent with the aggregate violation counts, and only
+  reading a raw API response settled it. Same pattern as runs 003 and 013: aggregate
+  counters localise a problem, they do not identify it.

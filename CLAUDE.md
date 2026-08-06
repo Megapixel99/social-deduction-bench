@@ -181,6 +181,25 @@ the pull, then defeated deliberately (`--mem-budget=5` must refuse; a real budge
 pass) — **a check that has not been defeated is a guess**, and this one had silently
 printed nothing when I first claimed it worked.
 
+**DEFECT 17 — a truncated JSON reply loses EVERY field, including the one that survived.**
+Constrained decoding guarantees the schema's shape, not that generation finishes. When the
+budget ran out mid-`statement` the document became unparseable in its entirety, so the
+decision sitting complete at the front was discarded with it. Run 015 measured the cost:
+**nemotron-3-super captured its decision on 16% of calls and qwen3.5:2b on 2%** — their
+0.281 and 0.327 "invalid move rates" were almost entirely my parser throwing away answers
+the models had given. A salvage parser (close the open string and brackets, re-parse)
+recovers 157 lost decisions across 43 games: nemotron 16% -> 55%, qwen3.5:2b 2% -> **88%**,
+gpt-oss:120b 86% -> 91%. Five models were unaffected at 100% either way, so their rows were
+always real.
+*The deeper failure is that a mitigation silently expired.* Decision-first field ordering
+(DEFECT 8's follow-up) existed so a truncated reply would still carry the move — true for
+the `KEY: value` contract, **false for JSON**, where a cut anywhere invalidates everything.
+Switching contracts retired the protection without retiring the problem, and nothing
+re-checked it. **Lesson: when you replace a mechanism, re-verify every mitigation that
+existed because of the old one — a fix is only valid under the assumptions it was written
+for.** Covered by four checks including a mutation test that fails if the salvage path is
+not the thing doing the work.
+
 **DEFECT 16 — the warm-up loaded every model at its NATIVE context, and that killed three
 batches.** `warmModel()` sent only `num_predict: 1` and omitted `num_ctx`, so Ollama loaded
 each model at its advertised context length and reserved a KV cache to match. `qwen3:4b` —
