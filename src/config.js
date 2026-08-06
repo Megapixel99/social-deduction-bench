@@ -279,15 +279,21 @@ const ROSTERS = {
    * puts eight of ten seats on models that need none — one small local anchor and the
    * control are the only local cost (~4 GB).
    *
-   * The price is distinct models: **four, not ten**. What it buys is n. Over 100 games
+   * NO LOCAL SEATS AT ALL. This roster originally kept one (`qwen3-4b`) as the anchor
+   * back to runs 007-011, but local inference is itself broken on this machine: Ollama's
+   * llama runner segfaults on load (`exit status 2`) with 0.4 GB free and swap at 51 of
+   * 52 GB, so a 2.5 GB model will not load. **Losing the anchor is a real cost** — this
+   * batch cannot be compared to 007-011 except through the rule-based control, which is
+   * the same policy in both and therefore the only common reference left.
+   *
+   * The price is distinct models: **three, not ten**. What it buys is n. Over 100 games
    * gpt-oss:120b reaches n~400 accusations and nemotron n~300 — far past the +/-0.09 noise
    * floor, and enough to settle whether a large hosted model clears the control, which is
    * the closest available proxy for open question 4 while the frontier accounts are unfunded.
    */
   'hosted-heavy': [
-    'gpt-oss-120b', 'gpt-oss-120b', 'gpt-oss-120b', 'gpt-oss-120b',
+    'gpt-oss-120b', 'gpt-oss-120b', 'gpt-oss-120b', 'gpt-oss-120b', 'gpt-oss-120b',
     'nemotron', 'nemotron', 'nemotron',
-    'qwen3-4b',   // the one local seat: the anchor back to runs 007-011
     'scripted', 'scripted',
   ],
 
