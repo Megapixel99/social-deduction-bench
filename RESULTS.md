@@ -1,7 +1,7 @@
 # Results log
 
 Append-only. One entry per batch, newest last. Format follows the experiment log in
-`../llmRnD/trainingReseach/CLAUDE.md`: **Why / Setup / Result / Finding / Limits**, so a
+a prior research project of mine: **Why / Setup / Result / Finding / Limits**, so a
 reader can tell what was measured from what was inferred.
 
 Rules for this file, learned the hard way in the runs below:
@@ -37,7 +37,7 @@ Hardware for every run: Apple M1 Max, 64 GB, local Ollama. Raw logs in `results/
 
 ## 001 — Rule-based control, seeds 1 and 7 — 2026-08-04
 
-- **Why:** establish the bar before any model runs. Exp 032 in trainingResearch found a
+- **Why:** establish the bar before any model runs. Exp 032 in that prior research found a
   bounded agentic domain needed no learned component at all, so a model that cannot beat
   a few dozen lines of policy is not doing social deduction.
 - **Setup:** `--test` (7 rule-based seats), 12 games each at seed 1 and seed 7.
@@ -80,7 +80,7 @@ Hardware for every run: Apple M1 Max, 64 GB, local Ollama. Raw logs in `results/
   they are what random voting scores.
 - **FINDING — calibration is the result that survives.** Control +0.225, granite exactly
   **0.000**, qwen3.5:2b **−0.200** (more confident when *wrong*). This is
-  trainingResearch finding 12 — fluency without meaning — as a number.
+  prior-research finding 12 — fluency without meaning — as a number.
 - **Not established:** whether any 2B model beats the control. +0.156 vs +0.133 at n=12
   vs n=84 is inside 001's noise floor.
 - **Transcript failures no metric caught:** llama3.2:1b broke character with an assistant
@@ -190,7 +190,7 @@ Hardware for every run: Apple M1 Max, 64 GB, local Ollama. Raw logs in `results/
 - **Interim reading, to be re-checked at n=60:** the size ordering is inverted (2B and 1B
   above the 20B), which is suspicious enough to deserve the standing rule about
   distrusting a good measurement. But `calib` is consistent with 002 and with
-  trainingResearch finding 12: the control carries **+0.192** of confidence signal and
+  prior-research finding 12: the control carries **+0.192** of confidence signal and
   every model carries ~0.000 or negative. Models pick suspects slightly better than
   bandwagoning while their stated confidence means nothing.
 - **Caveat:** qwen3.5:2b named a dead player 29 times and its invalid rate (0.149) sits
@@ -227,7 +227,7 @@ Hardware for every run: Apple M1 Max, 64 GB, local Ollama. Raw logs in `results/
   gemma3:1b −0.013; qwen3.5:2b −0.050. The models pick suspects about as well as a
   bandwagon policy while their stated confidence carries **no information** — and two of
   four are *inverted*, more confident when wrong. Consistent with 002 (n=12) and with
-  trainingResearch finding 12: next-token loss cannot separate fluent from correct.
+  prior-research finding 12: next-token loss cannot separate fluent from correct.
 - **CAVEAT — qwen3.5:2b's top row is the least trustworthy.** invalid 0.147 sits on the
   0.15 gate and it named a dead player **63 times**. gemma3:1b: 48 times (invalid 0.136);
   qwen3:4b: 28; gpt-oss:20b: 9. Roster tracking scales with size cleanly even where
@@ -250,7 +250,7 @@ Hardware for every run: Apple M1 Max, 64 GB, local Ollama. Raw logs in `results/
 ## 008 — RESULT: `--context=full` vs `ledger`, paired, 60 games each
 
 - **Why:** prediction 4 in `RESEARCH.md`, the only one whose answer is useful either way.
-  The ledger exists because trainingResearch finding 55 measured context as the largest
+  The ledger exists because prior-research finding 55 measured context as the largest
   small-model lever *while* a window wider than the capacity can use made results worse,
   and findings 10/50 measured an explicit table beating added parameters.
 - **Setup:** identical to 007 — same roster, **same seed 7**, 60 games, schema contract —
@@ -451,7 +451,7 @@ Hardware for every run: Apple M1 Max, 64 GB, local Ollama. Raw logs in `results/
   in this design that it deserves a clean number.
 
 - **Why:** the only prediction in `RESEARCH.md` whose answer is useful either way
-  (prediction 4). The ledger exists because trainingResearch finding 55 measured context
+  (prediction 4). The ledger exists because prior-research finding 55 measured context
   as the largest small-model lever *while* a window wider than the capacity can use made
   results worse, and findings 10/50 measured an explicit table beating added parameters.
   If the derived ledger helps small models and not large ones, that design is load-bearing.
@@ -483,7 +483,7 @@ Hardware for every run: Apple M1 Max, 64 GB, local Ollama. Raw logs in `results/
 - **Setup:** `--roster=ctf-transfer --games=30 --seed=7`, seating `ctf-bot` beside
   **qwen2.5:3b, its own base model**, so a difference cannot be explained by size.
 - **Expected:** no transfer. CTF replays teach shell-command selection, not social
-  inference, and trainingResearch's v5/v7 lesson was that replay loops reinforce a
+  inference, and that prior research's v5/v7 lesson was that replay loops reinforce a
   model's own mistakes.
 
 ## 012 — Frontier APIs are BLOCKED (billing), substituted with within-family scale — 2026-08-05
@@ -657,3 +657,112 @@ Hardware for every run: Apple M1 Max, 64 GB, local Ollama. Raw logs in `results/
   0.006, one dead-player reference in 10 games across all models.
 - **Limits:** n is 10-40 accusations per model. 4 API errors and 44 unresolved moves, the
   bulk of both from minimax-m3.
+
+## 023/024 — cloud-ten with pacing — nemotron-3-ultra rejected — 2026-08-06
+
+- **024 died in night 1.** `--roster=cloud-ten --games=10 --seed=7` with the new 3 s
+  module-level call gap (DEFECT 18). Henry's seat (`nemotron-3-ultra`) took two 429s,
+  exhausted its retries at 30 s + 60 s, and the batch stopped by design rather than
+  recording games full of substituted moves.
+- **CONCLUSION — nemotron-3-ultra is out of the cloud roster.** It was already suspect on
+  latency; it is also a rate-limit magnet, and pacing that is sufficient for gpt-oss:120b
+  and gemma4 does not save it. The honest cloud roster is **two models plus the control**.
+- Raw: `results/024_paced.log`.
+
+## 025 — cross-batch re-analysis of every finished game (n=522) — 2026-08-06
+
+Not a new batch. The `logs/` tree was restored, so all **522 finished games across 38
+sessions** were re-read from the per-game JSON — per-seat metrics and the **3,368
+individual town accusation records**, rather than the printed batch summaries every earlier
+entry here quotes. Charts: `analysis/mafia-charts.html`. Extraction and aggregation are
+in `analysis/extract.js` and `analysis/analyze.js`.
+
+- **FINDING — detection does not exist on day 1, and this is the largest effect in the
+  whole log.** Pooled over every model and batch:
+
+  | day | town accusations | accuracy | chance | det.lift |
+  |---|---|---|---|---|
+  | 1 | 2103 | 0.372 | 0.377 | **−0.005** |
+  | 2 | 944 | 0.544 | 0.412 | +0.132 |
+  | 3 | 263 | 0.631 | 0.397 | +0.234 |
+  | 4 | 51 | 0.667 | 0.407 | +0.260 |
+
+  Day 1 is *exactly* chance on n=2103. Mean game length is 2.5 days, so **most turns in
+  every number published above are day-1 turns where no evidence exists yet.** Every pooled
+  `det.lift` in this file is therefore diluted by turns that were unanswerable, and a model
+  that ends games quickly is scored mostly on its worst-information turns. This is the
+  strongest candidate explanation for how compressed the leaderboard has always looked.
+
+- **FINDING — the control's spread is sampling noise, and it shrinks on schedule.** 27
+  batches, range −0.125 to +0.416 — but split by size, batches of **≥30 games span 0.142**
+  (−0.028 to +0.114) while batches under 15 span **0.541** (−0.125 to +0.416). Every
+  extreme reading this project ever produced came from a batch of ≤12 games. **This
+  corrects the framing used in earlier entries**, which treated the control's disagreement
+  with itself as a fixed floor; it is ordinary `1/√n` behaviour, and it prices a readable
+  arm at ~30 games. The ±0.09-at-n=30 floor from 009b/c is consistent with this.
+
+- **FINDING — two different competences, which pooling destroys.** Day curves diverge in
+  shape, not just level:
+
+  | player | day 1 | day 2 | day 3 |
+  |---|---|---|---|
+  | rule-based control | +0.010 (n=942) | +0.198 (n=484) | **+0.410** (n=110) |
+  | gpt-oss:120b | **+0.170** (n=91) | +0.096 (n=53) | — (n=22, below floor) |
+  | gpt-oss:20b | +0.007 (n=252) | +0.074 (n=106) | +0.181 (n=33) |
+
+  The control starts at chance and compounds hard, because its policy reads the accumulated
+  accusation and vote record — which only exists later. gpt-oss:120b does the reverse: real
+  cold-read signal on day 1 where the control has none, then it fails to compound.
+  **A single pooled score ranks these two as near-equal while they are doing opposite
+  things.** This is a stronger argument for the two-channel design than anything measured
+  so far, and it suggests `det.lift` should be reported per-day as standard.
+
+- **FINDING — with intervals, one model separates from chance and none from the control.**
+  95% **cluster bootstrap over games** (2,000 resamples, fixed seed) — seats within a game
+  are not independent, since one player's hit is another's miss, so resampling seats would
+  shrink intervals in the direction that manufactures findings:
+
+  | model | town seats | games | rosters | det.lift | 95% CI | invalid |
+  |---|---|---|---|---|---|---|
+  | gpt-oss:120b | 91 | 61 | 6 | **+0.193** | [+0.083, +0.298] | 0.064 |
+  | gemma4 | 22 | 11 | 2 | +0.174 | [−0.064, +0.389] | 0.005 |
+  | nemotron-3-super | 47 | 41 | 4 | +0.146 | [+0.012, +0.279] | **0.235** |
+  | **rule-based control** | 868 | 434 | 14 | +0.071 | [+0.028, +0.118] | 0.000 |
+  | gpt-oss:20b | 252 | 195 | 6 | +0.001 | [−0.059, +0.061] | 0.018 |
+  | qwen3:4b | 219 | 199 | 9 | −0.076 | [−0.129, −0.012] | 0.089 |
+  | qwen2.5:3b | 41 | 37 | 3 | −0.202 | [−0.289, −0.114] | 0.213 |
+
+  gpt-oss:120b is the only model clearing zero on a real sample, and its interval still
+  **overlaps the control's**. So: it beats chance; it is not shown to beat the policy.
+  Three models are significantly *below* chance. Pooling across rosters is only strictly
+  valid for the control (010), so every model row carries its roster count.
+
+- **FINDING — the defense phase helps the Mafia (open question 5).** 44 defenses over 19
+  games, resolved against the execution that followed:
+
+  | defender | defenses | survived the vote |
+  |---|---|---|
+  | town | 21 | **0** |
+  | mafia | 23 | 4 (17%) |
+
+  **An accused villager given the floor has never once talked their way out.** The phase was
+  added on the theory that no-right-of-reply doomed town; the record says the reply does not
+  save them, while a Mafia occasionally argues its way clear. 0/21 puts town's upper bound
+  near 16%, at or below the Mafia's observed rate.
+  *Counter-signal, and it is confounded:* among 10-seat games town won 4/11 with the phase
+  on against 5/84 with it off — but those arms are different rosters (hosted vs local), so
+  it carries no causal claim. `--no-defense` at seed 7 on one roster remains the run that
+  settles it.
+
+- **FINDING — the game is structurally lopsided.** Town won **88 of 522 (16.9%)**: 18.6% at
+  7 seats (n=415), **9.5% at 10 seats** (n=95). This follows from the day-1 result — a
+  bigger room means proportionally more day-1 turns, which carry no signal — so the setup,
+  not the models, is doing much of the work. Any future claim about town performance has to
+  be read against a 16.9% base rate.
+
+- **Method note — an analysis bug that announced itself.** The first defense pass weighted
+  each game's `mafiaSurvivalRate` by that game's *total* defense count, mixing a mafia-only
+  numerator with an all-defenders denominator; it reported 7.3 mafia survivals out of 5
+  total. **The arithmetic being impossible is what caught it** — a plausible-looking wrong
+  number would have shipped. Recounted from primitives (who stood up, who the room then
+  voted out). Same class as DEFECT 3: a rate whose denominator was not checked.

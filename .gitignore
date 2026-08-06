@@ -3,5 +3,12 @@ node_modules/
 logs/
 reports/*
 !reports/*.py
+# the cross-batch analysis IS published output -- the README links to it, so a
+# gitignored copy would 404 for every visitor. Regenerate with analysis/report-md.js.
+!reports/cross-batch-analysis.md
+!reports/charts.html
 .claude/settings.local.json
 .DS_Store
+
+# regenerable intermediate (2.5 MB); rebuild with analysis/extract.js
+analysis/dataset.json

@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<title>Mafia benchmark — 522 games</title>
+
+<style>
+  :root {
+    color-scheme: light;
+    --ground: #fbfbfc;
+    --surface: #ffffff;
+    --surface-2: #f4f6f9;
+    --ink: #101318;
+    --ink-2: #565d69;
+    --ink-3: #878e9b;
+    --hair: #e3e6ec;
+    --hair-strong: #cfd5df;
+    --s1: #2a78d6;
+    --s2: #eb6834;
+    --s3: #1baf7a;
+    --muted-mark: #a9b0bc;
+    --band: #eef2f7;
+    --font-serif: "Iowan Old Style", "Charter", "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif;
+    --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --ground: #12141a;
+      --surface: #191c23;
+      --surface-2: #1f232b;
+      --ink: #f2f4f8;
+      --ink-2: #a8b0bd;
+      --ink-3: #7d8695;
+      --hair: #2a2e38;
+      --hair-strong: #3a404c;
+      --s1: #3987e5;
+      --s2: #d95926;
+      --s3: #199e70;
+      --muted-mark: #5c6472;
+      --band: #1e232c;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground: #12141a;
+    --surface: #191c23;
+    --surface-2: #1f232b;
+    --ink: #f2f4f8;
+    --ink-2: #a8b0bd;
+    --ink-3: #7d8695;
+    --hair: #2a2e38;
+    --hair-strong: #3a404c;
+    --s1: #3987e5;
+    --s2: #d95926;
+    --s3: #199e70;
+    --muted-mark: #5c6472;
+    --band: #1e232c;
+  }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-serif);
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 62rem; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  h1 {
+    font-size: clamp(1.9rem, 4.4vw, 2.9rem);
+    line-height: 1.12;
+    letter-spacing: -0.018em;
+    margin: 0.5rem 0 0;
+    text-wrap: balance;
+    font-weight: 600;
+  }
+  .standfirst {
+    max-width: 34em; color: var(--ink-2);
+    font-size: 1.08rem; margin: 1rem 0 0;
+  }
+  .meta {
+    font-family: var(--font-mono); font-size: 0.74rem; color: var(--ink-3);
+    margin-top: 1.4rem; padding-top: 1rem; border-top: 1px solid var(--hair);
+    display: flex; flex-wrap: wrap; gap: 0.4rem 1.4rem;
+  }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px;
+    background: var(--hair); border: 1px solid var(--hair); margin: 2.5rem 0 0; }
+  .stat { background: var(--surface); padding: 1rem 1.1rem; }
+  .stat b { display: block; font-family: var(--font-mono); font-size: 1.55rem;
+    font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .stat span { font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--ink-3); }
+
+  section { margin-top: 3.6rem; }
+  .sec-head { display: flex; gap: 1rem; align-items: baseline;
+    border-bottom: 1px solid var(--hair-strong); padding-bottom: 0.7rem; }
+  .sec-num { font-family: var(--font-mono); font-size: 0.78rem; color: var(--s1); font-weight: 600; }
+  h2 { font-size: 1.32rem; font-weight: 600; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+  .lede { color: var(--ink-2); margin: 1rem 0 1.6rem; max-width: 40em; }
+  .lede strong { color: var(--ink); font-weight: 600; }
+
+  .panel { background: var(--surface); border: 1px solid var(--hair); padding: 1.4rem 1.2rem 1rem; }
+  .chart-title { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--ink-2); margin: 0 0 1rem; }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .note { font-size: 0.87rem; color: var(--ink-2); margin: 1.1rem 0 0; max-width: 44em; }
+  .note code, code, .lede code, .callout code, footer code {
+    font-family: var(--font-mono); font-size: 0.86em; background: var(--surface-2);
+    padding: 0.08em 0.34em; border-radius: 2px; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; margin: 0 0 1rem;
+    font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-2); }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 2px;
+    margin-right: 0.4rem; vertical-align: -1px; }
+
+  .tbl-toggle { font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.06em;
+    text-transform: uppercase; background: none; border: 1px solid var(--hair-strong);
+    color: var(--ink-2); padding: 0.4rem 0.7rem; cursor: pointer; margin-top: 1.1rem; }
+  .tbl-toggle:hover { color: var(--ink); border-color: var(--ink-3); }
+  .tbl-toggle:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+  .tbl-wrap { overflow-x: auto; margin-top: 1rem; }
+  .tbl-wrap[hidden] { display: none; }
+  table { border-collapse: collapse; font-family: var(--font-mono); font-size: 0.76rem; width: 100%; }
+  th, td { text-align: right; padding: 0.34rem 0.7rem; border-bottom: 1px solid var(--hair);
+    white-space: nowrap; font-variant-numeric: tabular-nums; }
+  th { color: var(--ink-3); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em;
+    font-size: 0.68rem; border-bottom: 1px solid var(--hair-strong); }
+  td:first-child, th:first-child { text-align: left; }
+  tr.is-muted td { color: var(--ink-3); }
+
+  .tip { position: fixed; pointer-events: none; z-index: 50; background: var(--ink);
+    color: var(--ground); font-family: var(--font-mono); font-size: 0.72rem; line-height: 1.45;
+    padding: 0.5rem 0.65rem; border-radius: 3px; opacity: 0; transition: opacity 0.1s;
+    max-width: 270px; white-space: pre-line; }
+  .tip.on { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .tip { transition: none; } }
+
+  .callout { border-left: 2px solid var(--s2); background: var(--surface); padding: 0.9rem 1.1rem;
+    margin: 1.6rem 0 0; font-size: 0.94rem; color: var(--ink-2); }
+  .callout strong { color: var(--ink); }
+  footer { margin-top: 4rem; padding-top: 1.2rem; border-top: 1px solid var(--hair);
+    font-size: 0.85rem; color: var(--ink-3); max-width: 46em; }
+  .hit { cursor: default; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">AI vs AI Mafia · benchmark log</div>
+    <h1>What 522 games actually measured</h1>
+    <p class="standfirst">
+      Every finished game in <code>logs/</code>, read per turn rather than per batch. The sections
+      are numbered because they form a chain — each is only readable once the one above it is settled.
+    </p>
+    <div class="meta">
+      <span>522 games</span><span>38 sessions</span><span>19 models</span>
+      <span>3,915 seat-games</span><span>3,368 town accusations</span>
+    </div>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><b>16.9%</b><span>town win rate</span></div>
+    <div class="stat"><b>−0.005</b><span>day-1 detection lift</span></div>
+    <div class="stat"><b>+0.260</b><span>day-4 detection lift</span></div>
+    <div class="stat"><b>0 / 21</b><span>town defenses survived</span></div>
+  </div>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">01</span><h2>The measurement floor is sampling noise, and it shrinks on schedule</h2></div>
+    <p class="lede">
+      The rule-based control is a fixed policy — no model, no prompt, nothing that varies between
+      batches. Any spread it shows is therefore pure sampling noise, which makes it a ruler for
+      everything else. Across 27 batches it ranges <strong>−0.125 to +0.416</strong>. Split by batch
+      size, the apparent chaos resolves: batches of 30+ games span only <strong>0.142</strong>,
+      batches under 15 span <strong>0.541</strong>. That is ordinary <code>1/√n</code> behaviour
+      rather than an irreducible floor — and it prices a readable result at roughly 30 games.
+    </p>
+    <div class="panel">
+      <p class="chart-title">Control detection lift by batch size — one dot per batch</p>
+      <div id="c-funnel"></div>
+      <p class="note">
+        Shaded region marks batches of 30+ games. Every extreme reading in this project came from a
+        batch of 12 games or fewer.
+      </p>
+      <button class="tbl-toggle" data-t="t-funnel">Show data table</button>
+      <div class="tbl-wrap" id="t-funnel" hidden></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">02</span><h2>Detection does not exist on day 1</h2></div>
+    <p class="lede">
+      Pooled across all 3,368 town accusations, detection lift is <strong>−0.005 on day 1</strong> —
+      exactly chance, on n=2,103. It then climbs to +0.132, +0.234, +0.260. This is the cleanest
+      result in the dataset and it reframes every headline number: mean game length is 2.5 days, so
+      <strong>most turns in the sample are day-1 turns where no evidence exists yet</strong>. Pooled
+      per-model lift is diluted by turns nobody could have got right.
+    </p>
+    <div class="panel">
+      <p class="chart-title">Detection lift by game day — all models, all batches pooled</p>
+      <div id="c-day"></div>
+      <p class="note">
+        Accuracy and its chance baseline both sit in the tooltip: day-1 accuracy is 0.372 against a
+        0.377 baseline. The players are not guessing badly — there is nothing yet to know.
+      </p>
+      <button class="tbl-toggle" data-t="t-day">Show data table</button>
+      <div class="tbl-wrap" id="t-day" hidden></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">03</span><h2>Two different competences, not one ladder</h2></div>
+    <p class="lede">
+      Split that curve by player and the aggregate turns out to be hiding two opposite shapes. The
+      control starts at chance and compounds hard — <strong>+0.010 → +0.198 → +0.410</strong> —
+      because its policy reads the accumulated accusation and vote record, which only exists later.
+      <code>gpt-oss:120b</code> does the reverse: <strong>+0.170 on day 1</strong>, where the control
+      has nothing, then flattens to +0.096. It has real cold-read signal and fails to compound it.
+    </p>
+    <div class="panel">
+      <p class="chart-title">Detection lift by day, three players</p>
+      <div class="legend">
+        <span><i style="background:var(--s2)"></i>rule-based control</span>
+        <span><i style="background:var(--s1)"></i>gpt-oss:120b</span>
+        <span><i style="background:var(--s3)"></i>gpt-oss:20b</span>
+      </div>
+      <div id="c-profile"></div>
+      <p class="note">
+        <code>gpt-oss:120b</code> has no day-3 point: across 61 games it reaches that depth only 22
+        times, below the 25-turn floor these cells use. A limit of the sample, not a zero.
+      </p>
+      <button class="tbl-toggle" data-t="t-profile">Show data table</button>
+      <div class="tbl-wrap" id="t-profile" hidden></div>
+    </div>
+    <div class="callout">
+      <strong>Why this matters more than the leaderboard.</strong> A single pooled score ranks these
+      two players as roughly equal. They are not doing the same thing well — one exploits an evidence
+      record, the other reads a cold room. Averaging the days destroys the only distinction worth
+      having.
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">04</span><h2>One model separates from chance; none clearly beats the policy</h2></div>
+    <p class="lede">
+      Intervals are a <strong>cluster bootstrap over games</strong>, not over seats — seats inside one
+      game are not independent, since one player's hit is another's miss, and resampling seats would
+      shrink the interval in precisely the direction that manufactures findings.
+      <code>gpt-oss:120b</code> is the only model whose interval clears zero on a real sample:
+      <strong>+0.193 [+0.083, +0.298]</strong> over 61 games. It still overlaps the control's
+      <strong>+0.071 [+0.028, +0.118]</strong>, so the defensible claim is that it beats chance —
+      not that it beats a few dozen lines of policy.
+    </p>
+    <div class="panel">
+      <p class="chart-title">Detection lift, 95% cluster-bootstrap interval</p>
+      <div class="legend">
+        <span><i style="background:var(--s2)"></i>rule-based control</span>
+        <span><i style="background:var(--s1)"></i>passes readability gate</span>
+        <span><i style="background:var(--muted-mark)"></i>gated: n&lt;20 seats or invalid&gt;0.15</span>
+      </div>
+      <div id="c-board"></div>
+      <p class="note">
+        Gated rows are drawn rather than dropped — deleting them would conceal that
+        <code>nemotron-3-super</code> looks strong at +0.146 while substituting 23.5% of its moves at
+        random. Read <code>invalid</code> before <code>lift</code>, always.
+      </p>
+      <button class="tbl-toggle" data-t="t-board">Show data table</button>
+      <div class="tbl-wrap" id="t-board" hidden></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">05</span><h2>The defense phase helps the Mafia</h2></div>
+    <p class="lede">
+      The phase was added on the theory that a town player with no right of reply was structurally
+      doomed. The record says handing them the floor does not save them:
+      <strong>0 of 21 town defenses survived the vote; 4 of 23 Mafia defenses did.</strong>
+      An accused villager who speaks has not once talked their way out.
+    </p>
+    <div class="panel">
+      <p class="chart-title">Defenses by faction — did the defender survive the vote that followed</p>
+      <div id="c-def"></div>
+      <p class="note">
+        44 defenses across 19 games, mean length 54 words. A small sample, reported as counts for
+        that reason — but 0 of 21 puts the upper bound on town survival near 16%, at or below the
+        Mafia's observed 17%.
+      </p>
+      <button class="tbl-toggle" data-t="t-def">Show data table</button>
+      <div class="tbl-wrap" id="t-def" hidden></div>
+    </div>
+    <div class="callout">
+      <strong>One confound, stated rather than buried.</strong> Among 10-player games, town won 4 of
+      11 with the phase on against 5 of 84 with it off. That looks enormous, but the arms are
+      different rosters — the defense games are hosted models, the rest local. It is not a paired
+      comparison and carries no causal claim. <code>--no-defense</code> at seed 7 on one roster is
+      the run that would settle it.
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">06</span><h2>The game itself is lopsided</h2></div>
+    <p class="lede">
+      Town won <strong>88 of 522</strong>. The deficit worsens as the table grows — 18.6% at seven
+      seats, <strong>9.5% at ten</strong> — which follows from section 02: a bigger room means
+      proportionally more day-1 turns, and day-1 turns are the ones carrying no signal. The setup,
+      not the models, is doing much of this.
+    </p>
+    <div class="panel">
+      <p class="chart-title">Town win rate by seat count</p>
+      <div id="c-out"></div>
+      <button class="tbl-toggle" data-t="t-out">Show data table</button>
+      <div class="tbl-wrap" id="t-out" hidden></div>
+    </div>
+  </section>
+
+  <footer>
+    Built from every <code>game-NNN.json</code> under <code>logs/</code> — per-seat metrics and
+    per-turn accusation records, not the printed batch summaries. Pooling a model across batches is
+    only strictly legitimate for the control, whose policy is byte-identical everywhere; for a model,
+    detection lift is a property of a model <em>in a field</em>, so every row carries its roster count
+    in the table. Intervals from 2,000 cluster-bootstrap resamples over games at a fixed seed.
+  </footer>
+</div>
+
+<div class="tip" id="tip"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var tip = document.getElementById("tip");
+  function showTip(e, label) {
+    tip.textContent = label;
+    tip.classList.add("on");
+    var pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+    var x = e.clientX + pad, y = e.clientY - h - pad;
+    if (x + w > window.innerWidth - 8) x = e.clientX - w - pad;
+    if (x < 8) x = 8;
+    if (y < 8) y = e.clientY + pad;
+    tip.style.left = x + "px";
+    tip.style.top = y + "px";
+  }
+  function hideTip() { tip.classList.remove("on"); }
+
+  var NS = "http://www.w3.org/2000/svg";
+  function el(name, attrs, text) {
+    var n = document.createElementNS(NS, name);
+    for (var k in attrs) if (attrs[k] !== null && attrs[k] !== undefined) n.setAttribute(k, attrs[k]);
+    if (text !== undefined) n.textContent = text;
+    return n;
+  }
+  function svg(w, h) { return el("svg", { viewBox: "0 0 " + w + " " + h, role: "img" }); }
+  function attach(node, label) {
+    node.classList.add("hit");
+    node.addEventListener("mousemove", function (e) { showTip(e, label); });
+    node.addEventListener("mouseleave", hideTip);
+  }
+  function sgn(v, d) {
+    d = d === undefined ? 3 : d;
+    var s = Math.abs(v).toFixed(d);
+    if (parseFloat(s) === 0) return s;          // a signed zero tick reads as an error
+    return (v >= 0 ? "+" : "−") + s;
+  }
+
+  var MONO = "ui-monospace, SFMono-Regular, Menlo, monospace";
+  function txt(x, y, s, o) {
+    o = o || {};
+    return el("text", {
+      x: x, y: y, "font-family": MONO, "font-size": o.size || 11,
+      fill: o.fill || "var(--ink-3)", "text-anchor": o.anchor || "start",
+      "font-weight": o.weight || 400
+    }, s);
+  }
+
+  /* ---------- 01 · funnel: control lift vs batch size ---------- */
+  var CTRL = [
+    [6,-0.125],[6,-0.125],[6,-0.110],[6,-0.110],[6,-0.097],[60,-0.028],[40,-0.009],[6,0.000],
+    [30,0.009],[30,0.020],[7,0.021],[43,0.037],[40,0.055],[4,0.059],[12,0.069],[6,0.070],
+    [30,0.083],[60,0.085],[14,0.093],[30,0.114],[3,0.190],[12,0.239],[12,0.239],[10,0.336],
+    [2,0.342],[8,0.367],[3,0.416]
+  ];
+  (function () {
+    var W = 780, H = 340, L = 56, R = 20, T = 14, B = 46;
+    var pw = W - L - R, ph = H - T - B;
+    var s = svg(W, H);
+    var xmax = 64, ymin = -0.18, ymax = 0.46;
+    function X(g) { return L + (g / xmax) * pw; }
+    function Y(v) { return T + ph - ((v - ymin) / (ymax - ymin)) * ph; }
+
+    s.appendChild(el("rect", { x: X(30), y: T, width: X(xmax) - X(30), height: ph, fill: "var(--band)" }));
+    s.appendChild(txt(X(30) + 8, T + 15, "30+ games", { size: 10 }));
+
+    [-0.1, 0, 0.1, 0.2, 0.3, 0.4].forEach(function (v) {
+      s.appendChild(el("line", { x1: L, x2: L + pw, y1: Y(v), y2: Y(v),
+        stroke: v === 0 ? "var(--hair-strong)" : "var(--hair)", "stroke-width": v === 0 ? 1.5 : 1 }));
+      s.appendChild(txt(L - 8, Y(v) + 3.5, sgn(v, 2), { anchor: "end", size: 10 }));
+    });
+    [0, 10, 20, 30, 40, 50, 60].forEach(function (g) {
+      s.appendChild(txt(X(g), H - B + 18, String(g), { anchor: "middle", size: 10 }));
+    });
+    s.appendChild(txt(L + pw / 2, H - B + 36, "games in batch", { anchor: "middle", size: 10 }));
+
+    CTRL.forEach(function (d) {
+      var c = el("circle", { cx: X(d[0]), cy: Y(d[1]), r: 5.5, fill: "var(--s2)",
+        stroke: "var(--surface)", "stroke-width": 2, "fill-opacity": 0.88 });
+      attach(c, d[0] + " games\ndet.lift " + sgn(d[1]));
+      s.appendChild(c);
+    });
+    s.appendChild(txt(X(3) + 13, Y(0.416) + 4, "+0.416 (3 games)", { size: 10, fill: "var(--ink-2)" }));
+    s.appendChild(txt(X(60) - 12, Y(0.085) - 11, "+0.085 (60 games)",
+      { size: 10, fill: "var(--ink-2)", anchor: "end" }));
+    document.getElementById("c-funnel").appendChild(s);
+
+    var rows = CTRL.slice().sort(function (a, b) { return b[0] - a[0] || a[1] - b[1]; })
+      .map(function (d) { return "<tr><td>" + d[0] + "</td><td>" + sgn(d[1]) + "</td></tr>"; }).join("");
+    document.getElementById("t-funnel").innerHTML =
+      "<table><thead><tr><th>games in batch</th><th>control det.lift</th></tr></thead><tbody>" +
+      rows + "</tbody></table>";
+  })();
+
+  /* ---------- 02 · by day ---------- */
+  var DAYS = [
+    { day: 1, n: 2103, acc: 0.372, chance: 0.377, lift: -0.005 },
+    { day: 2, n: 944, acc: 0.544, chance: 0.412, lift: 0.132 },
+    { day: 3, n: 263, acc: 0.631, chance: 0.397, lift: 0.234 },
+    { day: 4, n: 51, acc: 0.667, chance: 0.407, lift: 0.260 }
+  ];
+  (function () {
+    var W = 780, H = 300, L = 56, R = 20, T = 20, B = 50;
+    var pw = W - L - R, ph = H - T - B;
+    var s = svg(W, H);
+    var ymin = -0.06, ymax = 0.30;
+    function Y(v) { return T + ph - ((v - ymin) / (ymax - ymin)) * ph; }
+    var bw = pw / DAYS.length;
+
+    [-0.05, 0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3].forEach(function (v) {
+      s.appendChild(el("line", { x1: L, x2: L + pw, y1: Y(v), y2: Y(v),
+        stroke: v === 0 ? "var(--hair-strong)" : "var(--hair)", "stroke-width": v === 0 ? 1.5 : 1 }));
+      s.appendChild(txt(L - 8, Y(v) + 3.5, sgn(v, 2), { anchor: "end", size: 10 }));
+    });
+
+    DAYS.forEach(function (d, i) {
+      var x = L + i * bw + bw * 0.22, w = bw * 0.56;
+      var y0 = Y(0), y1 = Y(d.lift);
+      var top = Math.min(y0, y1), hh = Math.max(2.5, Math.abs(y1 - y0));
+      var r = el("rect", { x: x, y: top, width: w, height: hh, rx: 4,
+        fill: d.lift < 0 ? "var(--muted-mark)" : "var(--s1)" });
+      attach(r, "day " + d.day + "\nturns    " + d.n + "\naccuracy " + d.acc.toFixed(3) +
+        "\nchance   " + d.chance.toFixed(3) + "\nlift     " + sgn(d.lift));
+      s.appendChild(r);
+      s.appendChild(txt(x + w / 2, d.lift >= 0 ? top - 9 : top + hh + 16, sgn(d.lift),
+        { anchor: "middle", size: 11.5, fill: "var(--ink)", weight: 600 }));
+      s.appendChild(txt(x + w / 2, H - B + 21, "day " + d.day,
+        { anchor: "middle", size: 11, fill: "var(--ink-2)" }));
+      s.appendChild(txt(x + w / 2, H - B + 36, "n=" + d.n, { anchor: "middle", size: 10 }));
+    });
+    document.getElementById("c-day").appendChild(s);
+
+    document.getElementById("t-day").innerHTML =
+      "<table><thead><tr><th>day</th><th>turns</th><th>accuracy</th><th>chance</th><th>lift</th></tr></thead><tbody>" +
+      DAYS.map(function (d) {
+        return "<tr><td>" + d.day + "</td><td>" + d.n + "</td><td>" + d.acc.toFixed(3) +
+          "</td><td>" + d.chance.toFixed(3) + "</td><td>" + sgn(d.lift) + "</td></tr>";
+      }).join("") + "</tbody></table>";
+  })();
+
+  /* ---------- 03 · profiles ---------- */
+  /**
+   * `mark` names the ONE point on each line worth a printed number — the two endpoints the
+   * prose argues from, plus 20b's finish for scale. Labelling every point would collide:
+   * the control and 20b sit 0.003 apart on day 1, which is under two pixels here.
+   * `ldy` lifts a series label clear of a neighbouring line rather than letting the 20b
+   * slope run through the 120b name.
+   */
+  var PROF = [
+    { name: "rule-based control", color: "var(--s2)", ldy: 4, mark: 2,
+      pts: [[1, 0.010, 942], [2, 0.198, 484], [3, 0.410, 110]] },
+    { name: "gpt-oss:120b", color: "var(--s1)", ldy: -14, mark: 0,
+      pts: [[1, 0.170, 91], [2, 0.096, 53]] },
+    { name: "gpt-oss:20b", color: "var(--s3)", ldy: 4, mark: 2,
+      pts: [[1, 0.007, 252], [2, 0.074, 106], [3, 0.181, 33]] }
+  ];
+  (function () {
+    var W = 780, H = 320, L = 56, R = 132, T = 22, B = 46;
+    var pw = W - L - R, ph = H - T - B;
+    var s = svg(W, H);
+    var ymin = -0.03, ymax = 0.45;
+    function X(d) { return L + ((d - 1) / 2) * pw; }
+    function Y(v) { return T + ph - ((v - ymin) / (ymax - ymin)) * ph; }
+
+    [0, 0.1, 0.2, 0.3, 0.4].forEach(function (v) {
+      s.appendChild(el("line", { x1: L, x2: L + pw, y1: Y(v), y2: Y(v),
+        stroke: v === 0 ? "var(--hair-strong)" : "var(--hair)", "stroke-width": v === 0 ? 1.5 : 1 }));
+      s.appendChild(txt(L - 8, Y(v) + 3.5, sgn(v, 2), { anchor: "end", size: 10 }));
+    });
+    [1, 2, 3].forEach(function (d) {
+      s.appendChild(txt(X(d), H - B + 22, "day " + d, { anchor: "middle", size: 11, fill: "var(--ink-2)" }));
+    });
+
+    PROF.forEach(function (p) {
+      var dd = "";
+      p.pts.forEach(function (pt, i) { dd += (i ? " L" : "M") + X(pt[0]) + " " + Y(pt[1]); });
+      s.appendChild(el("path", { d: dd, fill: "none", stroke: p.color,
+        "stroke-width": 2, "stroke-linecap": "round" }));
+      p.pts.forEach(function (pt) {
+        var c = el("circle", { cx: X(pt[0]), cy: Y(pt[1]), r: 5, fill: p.color,
+          stroke: "var(--surface)", "stroke-width": 2 });
+        attach(c, p.name + "\nday " + pt[0] + "\nlift  " + sgn(pt[1]) + "\nturns " + pt[2]);
+        s.appendChild(c);
+      });
+      var last = p.pts[p.pts.length - 1];
+      s.appendChild(txt(X(last[0]) + 12, Y(last[1]) + p.ldy, p.name,
+        { size: 10.5, fill: "var(--ink-2)" }));
+      var mk = p.pts[p.mark];
+      s.appendChild(txt(X(mk[0]) + (p.mark === 0 ? 4 : 0), Y(mk[1]) - 13, sgn(mk[1]),
+        { size: 10.5, anchor: p.mark === 0 ? "start" : "middle", fill: "var(--ink)", weight: 600 }));
+    });
+    document.getElementById("c-profile").appendChild(s);
+
+    var tr = [];
+    PROF.forEach(function (p) {
+      p.pts.forEach(function (pt) {
+        tr.push("<tr><td>" + p.name + "</td><td>" + pt[0] + "</td><td>" + sgn(pt[1]) +
+          "</td><td>" + pt[2] + "</td></tr>");
+      });
+    });
+    document.getElementById("t-profile").innerHTML =
+      "<table><thead><tr><th>player</th><th>day</th><th>lift</th><th>turns</th></tr></thead><tbody>" +
+      tr.join("") + "</tbody></table>";
+  })();
+
+  /* ---------- 04 · leaderboard ---------- */
+  var BOARD = [
+    ["gpt-oss:120b", 91, 61, 6, 0.193, 0.083, 0.298, 0.064, 0.062],
+    ["gemma4", 22, 11, 2, 0.174, -0.064, 0.389, 0.005, 0.172],
+    ["minimax-m3", 4, 4, 1, 0.146, -0.333, 0.625, 0.373, null],
+    ["nemotron-3-super", 47, 41, 4, 0.146, 0.012, 0.279, 0.235, 0.077],
+    ["rule-based-v1", 868, 434, 14, 0.071, 0.028, 0.118, 0.000, 0.169],
+    ["granite3.1-dense:2b", 40, 40, 4, 0.012, -0.106, 0.137, 0.273, -0.018],
+    ["mistral-small:24b", 36, 25, 2, 0.010, -0.139, 0.164, 0.000, -0.032],
+    ["gpt-oss:20b", 252, 195, 6, 0.001, -0.059, 0.061, 0.018, 0.047],
+    ["gemma3:1b", 127, 127, 6, -0.004, -0.083, 0.078, 0.264, 0.000],
+    ["qwen3.5:2b", 185, 173, 9, -0.047, -0.122, 0.022, 0.185, -0.021],
+    ["llama3.1:8b", 60, 60, 6, -0.059, -0.164, 0.051, 0.152, 0.025],
+    ["qwen3:4b", 219, 199, 9, -0.076, -0.129, -0.012, 0.089, 0.011],
+    ["smollm2:1.7b", 8, 8, 1, -0.133, -0.379, 0.128, 0.220, null],
+    ["ctf-custom-q4 (LoRA)", 29, 23, 1, -0.157, -0.285, -0.010, 0.103, 0.000],
+    ["granite3.2:2b", 12, 12, 1, -0.160, -0.400, 0.092, 0.026, -0.050],
+    ["exaone3.5:2.4b", 8, 8, 1, -0.172, -0.322, -0.019, 0.457, -0.037],
+    ["qwen2.5:3b", 41, 37, 3, -0.202, -0.289, -0.114, 0.213, -0.002],
+    ["llama3.2:1b", 1, 1, 1, -0.400, null, null, 0.511, null]
+  ];
+  (function () {
+    var rowH = 26, W = 780, L = 172, R = 62, T = 28, B = 34;
+    var H = T + BOARD.length * rowH + B;
+    var pw = W - L - R;
+    var s = svg(W, H);
+    var xmin = -0.46, xmax = 0.66;
+    function X(v) { return L + ((v - xmin) / (xmax - xmin)) * pw; }
+    var yTop = T - 8, yBot = T + BOARD.length * rowH;
+
+    [-0.4, -0.2, 0, 0.2, 0.4, 0.6].forEach(function (v) {
+      s.appendChild(el("line", { x1: X(v), x2: X(v), y1: yTop, y2: yBot,
+        stroke: v === 0 ? "var(--hair-strong)" : "var(--hair)", "stroke-width": v === 0 ? 1.5 : 1 }));
+      s.appendChild(txt(X(v), yBot + 22, sgn(v, 1), { anchor: "middle", size: 10 }));
+    });
+    s.appendChild(el("line", { x1: X(0.071), x2: X(0.071), y1: yTop, y2: yBot,
+      stroke: "var(--s2)", "stroke-width": 1.5, "stroke-dasharray": "3 3" }));
+    s.appendChild(txt(X(0.071), T - 14, "control +0.071", { anchor: "middle", size: 10, fill: "var(--s2)" }));
+
+    BOARD.forEach(function (r, i) {
+      var name = r[0], n = r[1], g = r[2], ros = r[3], v = r[4], lo = r[5], hi = r[6], inv = r[7], cal = r[8];
+      var isCtl = name === "rule-based-v1";
+      var gated = !isCtl && (n < 20 || inv > 0.15);
+      var col = isCtl ? "var(--s2)" : gated ? "var(--muted-mark)" : "var(--s1)";
+      var y = T + i * rowH + rowH / 2;
+
+      s.appendChild(txt(L - 12, y + 3.5, name, { anchor: "end", size: 10.5,
+        fill: gated ? "var(--ink-3)" : "var(--ink)", weight: isCtl ? 600 : 400 }));
+
+      if (lo !== null) {
+        s.appendChild(el("line", { x1: X(lo), x2: X(hi), y1: y, y2: y, stroke: col,
+          "stroke-width": 2, "stroke-linecap": "round", "stroke-opacity": gated ? 0.55 : 0.9 }));
+      }
+      var c = el("circle", { cx: X(v), cy: y, r: 5, fill: col,
+        stroke: "var(--surface)", "stroke-width": 2 });
+      attach(c, name + "\ndet.lift " + sgn(v) +
+        (lo === null ? "\n95% CI   n/a (1 game)" : "\n95% CI   [" + sgn(lo) + ", " + sgn(hi) + "]") +
+        "\ntown seats " + n + " in " + g + " games\nrosters  " + ros +
+        "\ninvalid  " + inv.toFixed(3) + (cal === null ? "" : "\ncalib    " + sgn(cal)) +
+        (gated ? "\n\nGATED: " + (n < 20 ? "sample too small" : "invalid > 0.15") : ""));
+      s.appendChild(c);
+      s.appendChild(txt(W - 8, y + 3.5, sgn(v), { anchor: "end", size: 10.5,
+        fill: gated ? "var(--ink-3)" : "var(--ink)", weight: 600 }));
+    });
+    document.getElementById("c-board").appendChild(s);
+
+    document.getElementById("t-board").innerHTML =
+      "<table><thead><tr><th>model</th><th>lift</th><th>95% CI</th><th>town seats</th><th>games</th>" +
+      "<th>rosters</th><th>invalid</th><th>calib</th></tr></thead><tbody>" +
+      BOARD.map(function (r) {
+        var gated = r[0] !== "rule-based-v1" && (r[1] < 20 || r[7] > 0.15);
+        return "<tr" + (gated ? ' class="is-muted"' : "") + "><td>" + r[0] + "</td><td>" + sgn(r[4]) +
+          "</td><td>" + (r[5] === null ? "—" : sgn(r[5]) + " … " + sgn(r[6])) +
+          "</td><td>" + r[1] + "</td><td>" + r[2] + "</td><td>" + r[3] + "</td><td>" +
+          r[7].toFixed(3) + "</td><td>" + (r[8] === null ? "—" : sgn(r[8])) + "</td></tr>";
+      }).join("") + "</tbody></table>";
+  })();
+
+  /* ---------- 05 · defenses ---------- */
+  var DEF = [
+    { f: "Town defends", n: 21, s: 0, color: "var(--s1)" },
+    { f: "Mafia defends", n: 23, s: 4, color: "var(--s2)" }
+  ];
+  (function () {
+    var W = 780, H = 196, L = 132, R = 168, T = 22;
+    var pw = W - L - R;
+    var s = svg(W, H);
+    var maxN = 24, rowH = 58;
+    function Xw(v) { return (v / maxN) * pw; }
+
+    DEF.forEach(function (d, i) {
+      var y = T + i * rowH;
+      s.appendChild(txt(L - 12, y + 25, d.f, { anchor: "end", size: 11, fill: "var(--ink)" }));
+      var bg = el("rect", { x: L, y: y + 8, width: Xw(d.n), height: 28, rx: 4, fill: "var(--band)" });
+      attach(bg, d.f + "\n" + d.n + " defenses given\n" + (d.n - d.s) + " executed anyway");
+      s.appendChild(bg);
+      if (d.s > 0) {
+        var fg = el("rect", { x: L, y: y + 8, width: Xw(d.s), height: 28, rx: 4, fill: d.color });
+        attach(fg, d.f + "\nsurvived the vote: " + d.s + " of " + d.n);
+        s.appendChild(fg);
+      } else {
+        s.appendChild(el("line", { x1: L + 1.5, x2: L + 1.5, y1: y + 8, y2: y + 36,
+          stroke: d.color, "stroke-width": 3 }));
+      }
+      s.appendChild(txt(L + Xw(d.n) + 12, y + 26, d.s + " of " + d.n + " survived",
+        { size: 11, fill: "var(--ink)", weight: 600 }));
+    });
+    s.appendChild(txt(L, H - 10, "bar length = defenses given · filled = defender survived the vote",
+      { size: 10 }));
+    document.getElementById("c-def").appendChild(s);
+
+    document.getElementById("t-def").innerHTML =
+      "<table><thead><tr><th>defender</th><th>defenses</th><th>survived</th><th>rate</th></tr></thead><tbody>" +
+      DEF.map(function (d) {
+        return "<tr><td>" + d.f + "</td><td>" + d.n + "</td><td>" + d.s + "</td><td>" +
+          (d.s / d.n).toFixed(3) + "</td></tr>";
+      }).join("") +
+      "<tr><td>all defenses</td><td>44</td><td>4</td><td>0.091</td></tr></tbody></table>";
+  })();
+
+  /* ---------- 06 · outcomes ---------- */
+  var OUT = [
+    { seats: 5, n: 12, town: 2, days: 2.17 },
+    { seats: 7, n: 415, town: 77, days: 2.38 },
+    { seats: 10, n: 95, town: 9, days: 3.18 }
+  ];
+  (function () {
+    var W = 780, H = 262, L = 56, R = 20, T = 20, B = 52;
+    var pw = W - L - R, ph = H - T - B;
+    var s = svg(W, H);
+    function Y(v) { return T + ph - (v / 0.25) * ph; }
+    var bw = pw / OUT.length;
+
+    [0, 0.05, 0.1, 0.15, 0.2, 0.25].forEach(function (v) {
+      s.appendChild(el("line", { x1: L, x2: L + pw, y1: Y(v), y2: Y(v),
+        stroke: v === 0 ? "var(--hair-strong)" : "var(--hair)", "stroke-width": v === 0 ? 1.5 : 1 }));
+      s.appendChild(txt(L - 8, Y(v) + 3.5, (v * 100).toFixed(0) + "%", { anchor: "end", size: 10 }));
+    });
+    var overall = 88 / 522;
+    s.appendChild(el("line", { x1: L, x2: L + pw, y1: Y(overall), y2: Y(overall),
+      stroke: "var(--s2)", "stroke-width": 1.5, "stroke-dasharray": "3 3" }));
+    s.appendChild(txt(L + pw, Y(overall) - 8, "all games 16.9%",
+      { anchor: "end", size: 10, fill: "var(--s2)" }));
+
+    OUT.forEach(function (d, i) {
+      var rate = d.town / d.n;
+      var x = L + i * bw + bw * 0.26, w = bw * 0.48, y = Y(rate);
+      var r = el("rect", { x: x, y: y, width: w, height: Y(0) - y, rx: 4,
+        fill: d.n < 30 ? "var(--muted-mark)" : "var(--s1)" });
+      attach(r, d.seats + " seats\ngames     " + d.n + "\ntown wins " + d.town +
+        "\nrate      " + (rate * 100).toFixed(1) + "%\nmean days " + d.days.toFixed(2) +
+        (d.n < 30 ? "\n\nGATED: only " + d.n + " games" : ""));
+      s.appendChild(r);
+      s.appendChild(txt(x + w / 2, y - 9, (rate * 100).toFixed(1) + "%",
+        { anchor: "middle", size: 11.5, fill: "var(--ink)", weight: 600 }));
+      s.appendChild(txt(x + w / 2, H - B + 22, d.seats + " seats",
+        { anchor: "middle", size: 11, fill: "var(--ink-2)" }));
+      s.appendChild(txt(x + w / 2, H - B + 37, d.town + " of " + d.n, { anchor: "middle", size: 10 }));
+    });
+    document.getElementById("c-out").appendChild(s);
+
+    document.getElementById("t-out").innerHTML =
+      "<table><thead><tr><th>seats</th><th>games</th><th>town wins</th><th>rate</th><th>mean days</th></tr></thead><tbody>" +
+      OUT.map(function (d) {
+        return "<tr" + (d.n < 30 ? ' class="is-muted"' : "") + "><td>" + d.seats + "</td><td>" +
+          d.n + "</td><td>" + d.town + "</td><td>" + ((d.town / d.n) * 100).toFixed(1) +
+          "%</td><td>" + d.days.toFixed(2) + "</td></tr>";
+      }).join("") + "</tbody></table>";
+  })();
+
+  /* ---------- table toggles ---------- */
+  Array.prototype.forEach.call(document.querySelectorAll(".tbl-toggle"), function (b) {
+    b.addEventListener("click", function () {
+      var t = document.getElementById(b.getAttribute("data-t"));
+      if (!t.hasAttribute("hidden")) { t.setAttribute("hidden", ""); b.textContent = "Show data table"; }
+      else { t.removeAttribute("hidden"); b.textContent = "Hide data table"; }
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
