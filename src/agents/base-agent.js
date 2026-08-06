@@ -75,6 +75,11 @@ class BaseAgent {
       apiErrors: 0,
       unparseable: 0,
       truncated: 0,
+      // Requests refused by the provider's quota. A move substituted because of a rate
+      // limit is NOT the model failing to decide, and must never land in
+      // invalid_move_rate as though it were.
+      rateLimited: 0,
+      rateLimitExhausted: 0,
       // Schema was sent but the reply was not valid JSON, so the text parser had to
       // be used. Non-zero means the provider ignored the schema.
       schemaIgnored: 0,
@@ -127,6 +132,17 @@ class BaseAgent {
     try {
       response = await this.callModel(messages, { maxTokens, schema });
     } catch (err) {
+      // Quota exhaustion is an infrastructure outcome, not a model result. Counted
+      // separately so it cannot be read as an invalid move, and re-thrown so the batch
+      // runner can stop rather than silently filling games with random substitutions.
+      if (err.isRateLimitExhausted) {
+        this.stats.rateLimitExhausted++;
+        logAgentTurn({
+          player: this.playerName, provider: this.provider, model: this.model,
+          kind, day, phase, error: 'RATE_LIMIT_EXHAUSTED',
+        });
+        throw err;
+      }
       this.stats.apiErrors++;
       const detail = err.message || String(err);
       console.error(`  [${this.playerName}] API error on ${kind}: ${detail}`);

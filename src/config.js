@@ -334,14 +334,20 @@ const ROSTERS = {
    * from a toy request is not a calibration. Measured in-game: gemma4 2.0 s,
    * gpt-oss:120b 6.0 s, minimax-m3 19.4 s.
    *
-   * So the fast models take the seats and minimax-m3 keeps one, for coverage rather than
-   * volume: ~4.5 min/game, 100 games in ~7 hours, with gpt-oss:120b at n~400 accusations
-   * against the control's n~200.
+   * The third seat was minimax-m3 and is now nemotron-3-ultra. Run 022 measured
+   * minimax-m3 at **invalid 0.373 and consist 0.167**, and it produced **34 of the 57**
+   * unresolved moves in that batch on its own — gemma4 produced 1. Its detection figure
+   * was unreadable, so the seat was buying noise at 19.4 s/call. nemotron-3-ultra is
+   * slower still (~40 s) but returned well-formed decisions when probed; if it also fails
+   * the invalid gate, the honest move is two models plus the control rather than a third
+   * seat that only adds unresolved moves.
+   *
+   * ~6 min/game with the slower third seat, so 10 games is ~1 hour.
    */
   'cloud-ten': [
     'gpt-oss-120b', 'gpt-oss-120b', 'gpt-oss-120b', 'gpt-oss-120b',
     'gemma4-cloud', 'gemma4-cloud', 'gemma4-cloud',
-    'minimax-m3',
+    'nemotron-ultra',
     'scripted', 'scripted',
   ],
 

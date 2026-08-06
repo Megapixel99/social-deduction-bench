@@ -10,6 +10,26 @@ const { CONFIG } = require('../../config.js');
  * from an ordinary error so the caller can pause the batch rather than record a
  * string of broken games.
  */
+/**
+ * Minimum gap between Ollama Cloud requests, shared across every seat.
+ *
+ * Calls are already strictly sequential, and for a while that was enough — an early batch
+ * saw zero 429s, so no pacing was added. That stopped being true once three distinct cloud
+ * models were seated: at 2-5 s per call the loop was issuing 12-30 requests a minute and
+ * the free tier began refusing them. **"No rate limiting observed" is not the same as "no
+ * rate limit", and the difference only shows up when throughput rises.**
+ *
+ * Module-level because the limit is per account, not per seat.
+ */
+const MIN_CALL_GAP_MS = 3000;
+let lastCallAt = 0;
+
+async function paceCloudCalls() {
+  const wait = MIN_CALL_GAP_MS - (Date.now() - lastCallAt);
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  lastCallAt = Date.now();
+}
+
 class OllamaCloudAgent extends BaseAgent {
   constructor(opts) {
     super({ ...opts, provider: 'ollama-cloud' });
@@ -42,9 +62,15 @@ class OllamaCloudAgent extends BaseAgent {
         const isRateLimit =
           status === 429 || msg.includes('rate limit') || msg.includes('capacity') || msg.includes('queue is full');
 
+        if (isRateLimit) this.stats.rateLimited++;
         if (isRateLimit && attempt < maxRetries) {
-          console.log(`  [${this.playerName}] rate limited — waiting 60s (${attempt}/${maxRetries})`);
-          await new Promise((r) => setTimeout(r, 60000));
+          // Exponential: 30s, 60s, 120s, 240s. A flat 60s x3 was not enough headroom
+          // once three models shared one account's quota.
+          const backoff = 30000 * 2 ** (attempt - 1);
+          console.log(
+            `  [${this.playerName}] rate limited — waiting ${backoff / 1000}s (${attempt}/${maxRetries})`
+          );
+          await new Promise((r) => setTimeout(r, backoff));
           continue;
         }
         if (isRateLimit) {
