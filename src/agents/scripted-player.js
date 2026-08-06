@@ -4,7 +4,7 @@ const { logAgentTurn } = require('../logger.js');
 /**
  * Rule-based baseline. No model, no API key, no GPU.
  *
- * This exists because of exp 032 in the trainingResearch repo: in a bounded domain,
+ * This exists because of exp 032 in that prior research: in a bounded domain,
  * agentic behaviour needed no learned component at all — ~230 lines of rules scored
  * planner 12/12 and end-to-end 6/6 — and it worked "because failures are specific
  * enough to key a policy on". Mafia's decision channel is bounded in exactly that

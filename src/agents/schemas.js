@@ -22,7 +22,7 @@
  * tokens. The mechanism is not subtle: the grammar cannot emit a document that lacks a
  * required property, so reasoning is unable to crowd the decision out.
  *
- * This was worth checking rather than assuming, because exp 015 in the trainingResearch
+ * This was worth checking rather than assuming, because exp 015 in that prior research
  * repo found the opposite for grammar-constrained decoding — "masking a not-near-valid
  * distribution yields degenerate loops instead of syntax errors." That result stands;
  * it does not transfer here. It concerned character-level grammar masking over a weak

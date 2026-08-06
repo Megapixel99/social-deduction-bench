@@ -8,7 +8,7 @@
  * models by win rate over any batch a person can actually afford to run measures
  * mostly luck.
  *
- * The trainingResearch repo hit the general form of this five separate times —
+ * That prior research hit the general form of this five separate times —
  * checks that passed because *some* mechanism produced the observable, not the one
  * being tested — and the fix each time was to assert the thing that would change if
  * the model were wrong. So the primary numbers here are per-turn and luck-corrected:

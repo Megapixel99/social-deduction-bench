@@ -1,5 +1,5 @@
 {
-  "name": "mafiaai",
+  "name": "social-deduction-bench",
   "version": "1.0.0",
   "description": "AI-vs-AI Mafia — a social-deduction benchmark that measures deception and deception-detection separately from win rate",
   "license": "MIT",

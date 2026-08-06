@@ -2,11 +2,11 @@
 
 An assessment written before running the model experiments, so that the predictions
 in it are falsifiable rather than retrofitted. Sources are the two repos this project
-draws on — `../CTF` (AI-vs-AI capture the flag, 106+ logged sessions, a 3B LoRA
-custom bot) and `../llmRnD/trainingReseach` (69 experiments on non-neural and
+draws on — a prior AI-vs-AI CTF project (private) (AI-vs-AI capture the flag, 106+ logged sessions, a 3B LoRA
+custom bot) and a prior local-LLM training-research project (private) (69 experiments on non-neural and
 small-model language modelling) — plus one external project, Swiftlet.
 
-Everything here is exploratory. The trainingResearch repo's own standing rule
+Everything here is exploratory. That prior research's own standing rule
 applies: distrust a suspiciously good measurement, and check before publishing,
 because a false finding costs more than the minutes checking would have taken.
 

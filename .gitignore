@@ -12,3 +12,7 @@ reports/*
 
 # regenerable intermediate (2.5 MB); rebuild with analysis/extract.js
 analysis/dataset.json
+
+# internal AI-handoff notes: session state, open threads, full defect log.
+# The public-facing half lives in ARCHITECTURE.md.
+CLAUDE.md

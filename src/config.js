@@ -175,7 +175,7 @@ const MODELS = {
   /**
    * Rule-based baseline. Not a language model: a few dozen lines of policy over the
    * same ledger the models see. Every claim about a model playing Mafia "well" is
-   * meaningless without it — exp 032 in the trainingResearch repo found a bounded
+   * meaningless without it — exp 032 in that prior research found a bounded
    * agentic domain needed no learned component at all, and this checks whether
    * social deduction is another one.
    */

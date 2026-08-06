@@ -2,7 +2,7 @@
  * Checks. Run with:  node test/checks.js
  *
  * Two of these are ordinary unit tests. The important one is the visibility
- * invariant, and it is written the way the trainingResearch repo insists on:
+ * invariant, and it is written the way that prior research insists on:
  * asserting the mechanism rather than an observable that more than one mechanism
  * could produce, and then *mutation-testing the check itself*. A leak detector that
  * has never caught a leak is indistinguishable from one that is asleep — five checks

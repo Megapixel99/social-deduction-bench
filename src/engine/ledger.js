@@ -10,7 +10,7 @@
  *   "ledger"  a derived table of who accused whom and who voted for whom on each
  *             day, plus only the most recent statements verbatim.
  *
- * The ledger exists because of two measurements in the trainingResearch repo:
+ * The ledger exists because of two measurements in that prior research:
  *
  *   - Context is the largest single lever on a small model (+0.106 to +0.139 top-1
  *     for 1.2% more parameters, 64 -> 256 tokens) but a window wider than the

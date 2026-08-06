@@ -14,7 +14,7 @@ const { CONFIG } = require('./config.js');
  *   fine for a 10-minute match and unpleasant for a long batch. Lines also survive
  *   a crash mid-run, where a truncated JSON array does not.
  *
- * - Writes go to a temp file and are renamed into place. The trainingResearch repo
+ * - Writes go to a temp file and are renamed into place. That prior research
  *   found the same non-atomic-write bug in four separate state writers, including
  *   one where Ctrl-C during a save turned a 57.8 MB index into a 1.5 MB stump. A
  *   guard on the read path is a hint the write path is unprotected, so this one is

@@ -1,8 +1,12 @@
-# AI vs AI Mafia
+# social-deduction-bench
 
 Language models play Mafia against each other. The point is not the transcript — it is
 that **deception and deception-detection get measured per turn, separately, and
 corrected for chance**, so the results say something a win/loss column cannot.
+
+The game is Mafia because it isolates the thing worth measuring; the name is
+`social-deduction-bench` because the instrument is the contribution, not the game. Nothing
+here ranks models by whether they won.
 
 > **Note on authorship.** A self-directed research project. The concept, research
 > questions and system design are mine; much of the implementation was AI-assisted
@@ -28,11 +32,90 @@ rule-based-v1    baseline   84    +0.293     +0.293    1.703    0.967  +0.217   
 ```
 
 One game from that same batch scored **−0.400**. Same players, same policy. That gap is
-the argument for the whole approach.
+the argument for the whole approach — and, as it turns out, a warning about the row above
+it: twelve games is not enough to pin that policy down. Pooled over 434 games it scores
+**+0.071**. See finding 1 below.
+
+## What 522 games measured
+
+Read from the per-game JSON of every finished game — 38 sessions, 19 models, **3,368
+individual accusation records** rather than batch summaries.
+
+![Detection lift by game day: −0.005 on day 1 (n=2103), then +0.132, +0.234, +0.260](docs/detection-by-day.png)
+
+📊 **[Open the full charts page →](reports/charts.html)** — six interactive charts with
+tooltips and a data table behind each one. It is a single self-contained file with no
+dependencies; GitHub shows HTML as source, so download it and open it in a browser (or
+run `open reports/charts.html`).
+
+Regenerate everything — data, report and figures — from `logs/`:
+
+```bash
+node analysis/extract.js && node analysis/analyze.js && node analysis/report-md.js && node analysis/make-figures.js
+```
+
+Written analysis: [reports/cross-batch-analysis.md](reports/cross-batch-analysis.md).
+Full narrative with `n` on every claim: [RESULTS.md](RESULTS.md) § 025.
+
+**1. The measurement floor is sampling noise, and it shrinks on schedule.** The control is
+a fixed policy, so any spread across batches is noise by construction. It spans −0.125 to
++0.416 across 27 batches — but batches of **≥30 games span 0.142** against **0.541** for
+batches under 15. Every extreme reading this project produced came from ≤12 games. That is
+`1/√n`, not a floor, and it prices a readable arm at ~30 games.
+
+**2. Detection does not exist on day 1.** Pooled over every game:
+
+| day | town accusations | accuracy | chance | det.lift |
+|---|---|---|---|---|
+| 1 | 2103 | 0.372 | 0.377 | **−0.005** |
+| 2 | 944 | 0.544 | 0.412 | +0.132 |
+| 3 | 263 | 0.631 | 0.397 | +0.234 |
+| 4 | 51 | 0.667 | 0.407 | +0.260 |
+
+Day 1 is *exactly* chance on n=2103 — the players are not guessing badly, there is nothing
+yet to know. Mean game length is 2.5 days, so **most turns behind any pooled score are
+day-1 turns**, and a model whose games end fast is judged mainly on its worst-information
+turns. Read `det.lift` per day.
+
+**3. Two competences, which pooling destroys.** The day curves differ in *shape*, not level:
+
+| player | day 1 | day 2 | day 3 |
+|---|---|---|---|
+| rule-based control | +0.010 | +0.198 | **+0.410** |
+| gpt-oss:120b | **+0.170** | +0.096 | — |
+| gpt-oss:20b | +0.007 | +0.074 | +0.181 |
+
+The control compounds, because its policy reads an accumulating record that only exists
+later. `gpt-oss:120b` inverts that: real cold-read signal where the control has none, then
+it fails to compound. A single pooled number calls them near-equal while they are doing
+opposite things — which is the sharpest argument for the two-channel design so far.
+
+**4. With intervals, one model clears chance and none clearly clears the control.** 95%
+cluster bootstrap over *games*, never over seats — seats within a game are not independent,
+since one player's hit is another's miss, and resampling seats narrows intervals in exactly
+the direction that manufactures findings. `gpt-oss:120b` is the only model clearing zero on
+a real sample, **+0.193 [+0.083, +0.298]** over 61 games, and it **still overlaps** the
+control's **+0.071 [+0.028, +0.118]**. Three models sit significantly *below* chance.
+
+![Detection lift per model with 95% cluster-bootstrap intervals; gpt-oss:120b at +0.193 is the only model clearing zero on a real sample, and it overlaps the rule-based control at +0.071](docs/model-intervals.png)
+
+**5. The defense phase helps the Mafia.** 44 defenses over 19 games, each resolved against
+the execution that followed: **town 0 of 21 survived; Mafia 4 of 23.** The phase was added
+because no-right-of-reply looked like it doomed town. The reply does not save them, while a
+Mafia occasionally argues its way clear. (The win-rate half is confounded by roster and
+still open.)
+
+**6. The game is lopsided before any model plays.** Town won **88 of 522 (16.9%)** — 18.6%
+at seven seats, 9.5% at ten. That follows from finding 2: a bigger room means proportionally
+more day-1 turns. Read any town result against a 16.9% base rate.
 
 ## Quick start
 
-No API keys, no GPU, runs in seconds:
+```bash
+git clone https://github.com/Megapixel99/social-deduction-bench.git && cd social-deduction-bench
+```
+
+No API keys, no GPU, runs in seconds — the rule-based control plays itself:
 
 ```bash
 npm install && npm run test-game
@@ -60,7 +143,9 @@ node src/index.js --local --games=30 --seed=1
 | `invalid` | turns where no legal move could be parsed and a random one was substituted |
 
 **Read `invalid` first.** Above ~0.15, the other columns describe a model that was not
-reliably making moves and are not comparable with one that was. Naming a dead player,
+reliably making moves and are not comparable with one that was. **Then read `det.lift` per
+day, not pooled** — day-1 turns are provably at chance (finding 2), so a pooled figure is
+diluted by turns nobody could have got right, and by a differing amount per model. Naming a dead player,
 inventing a player, illegal self-targeting and unparseable replies are counted
 separately per agent — a model that reasons well but drifts on a shrinking roster has a
 different problem from one that cannot reason, and averaging them hides the
@@ -185,7 +270,17 @@ src/
     providers/            openai (+ any OpenAI-compatible), claude, gemini,
                           grok/perplexity, ollama, ollama-cloud
 test/checks.js            parsing, win conditions, determinism, visibility
+analysis/
+  extract.js              logs/ -> flat per-game, per-seat and per-turn rows
+  analyze.js              aggregation + cluster-bootstrap intervals over games
+  report-md.js            writes reports/cross-batch-analysis.md
+  geomcheck.js            chart label geometry: bounds, overlaps, line crossings
+results/                  raw stdout for every number in RESULTS.md
 ```
+
+`analysis/` is the cross-batch analysis pipeline, kept in the repo because the findings
+above are only checkable if the path from `logs/` to a published number is rerunnable. Its
+`dataset.json` intermediate is gitignored — it rebuilds in a second.
 
 `state.js` has one job it must not get wrong: `viewFor(name)` may never leak a fact
 that player is not entitled to. Every prompt is built from it and nothing else, so
@@ -196,14 +291,17 @@ detector that has never caught one is indistinguishable from one that is asleep.
 ## Provenance
 
 The provider adapters, the session logger and the `KEY: value` parse-and-repair
-discipline are ported from a previous AI-vs-AI project (`../CTF`) rather than rewritten
+discipline are ported from a previous AI-vs-AI project (a prior AI-vs-AI CTF project (private)) rather than rewritten
 — roughly 1,100 lines of already-debugged integration code, including the Ollama
 `keep_alive`/`think:false` details and the Ollama Cloud rate-limit retry.
 
 The game engine, hidden-information state, ledger, metrics, baseline and prompts are
-written for this project. Design decisions traceable to measurements in
-`../llmRnD/trainingReseach` are cited at the point of use in the code and collected in
-[RESEARCH.md](RESEARCH.md).
+written for this project. Design decisions traceable to measurements in a prior
+local-LLM training-research project are cited at the point of use in the code and
+collected in [RESEARCH.md](RESEARCH.md).
+
+Design rationale, the invariants the code must preserve, and the harness failure modes this
+project has already hit: **[ARCHITECTURE.md](ARCHITECTURE.md)**.
 
 ## Requirements
 
