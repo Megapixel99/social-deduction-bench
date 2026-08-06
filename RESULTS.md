@@ -622,3 +622,38 @@ Hardware for every run: Apple M1 Max, 64 GB, local Ollama. Raw logs in `results/
   fields, then refusals; each was consistent with the aggregate violation counts, and only
   reading a raw API response settled it. Same pattern as runs 003 and 013: aggregate
   counters localise a problem, they do not identify it.
+
+## 022 — cloud-ten, 10 games, defense phase ON — first clean multi-model run — 2026-08-06
+
+- **Setup:** `--roster=cloud-ten --games=10 --seed=7`. All hosted (4x gpt-oss:120b,
+  3x gemma4, 1x minimax-m3, 2x rule-based control), so no local memory and none of the
+  crashes that killed 013/013b/015. Defense phase on. ~4.5 min/game.
+- **RESULT:** town won **4 of 10** — the best town record in this log (compare 1/18 in 015,
+  2/30 in 009a, 0/12 in 002).
+
+  | model | tier | n | det.lift | vote.lift | decep. | consist | calib | invalid | lat.ms |
+  |---|---|---|---|---|---|---|---|---|---|
+  | **rule-based control** | baseline | 20 | **+0.339** | +0.339 | 0.478 | 0.822 | **+0.352** | 0.000 | 0 |
+  | gpt-oss:120b | large-open | 40 | +0.228 | +0.126 | 1.211 | 0.679 | +0.069 | 0.075 | 7634 |
+  | gemma4 | large-open | 30 | +0.213 | +0.213 | 1.631 | 0.918 | **+0.172** | 0.006 | 4431 |
+  | minimax-m3 | large-open | 10 | +0.146 | +0.307 | 2.364 | 0.167 | — | **0.373** | 18465 |
+
+- **FINDING — the control still leads, and it has now led in every arm it has appeared in.**
+  +0.339 against gpt-oss:120b's +0.228. The gap (0.111) is only just outside the ±0.09
+  noise floor at these n, so this is suggestive rather than settled — but across runs 001,
+  007, 009a, 012 and 022 no model has beaten it.
+- **FINDING — gemma4 is the first model with real confidence signal.** calib **+0.172**
+  against gpt-oss:120b's +0.069 and every small local model's ~0.000 or negative. Combined
+  with invalid **0.006** and consist 0.918, it is the best-behaved model measured here, and
+  it is also the fastest (4.4 s). Worth its own paired batch.
+- **FINDING — defenses almost never work: 25 given, 2 survived (8%).** The accused was the
+  vote favourite when they spoke, so this says either the models' defenses are
+  unpersuasive or the room does not update on them. Town still won 4/10, so the phase may
+  help town by other means (an extra day of public record) rather than by rescuing the
+  accused. **Not disentangled** — `--no-defense` at seed 7 is the paired arm.
+- **CAVEAT — minimax-m3's row is not readable.** invalid **0.373** and consist 0.167 on
+  n=10; it is also 19.4 s/call. Its detection figure should be ignored.
+- **The DEFECT 17 fix is holding:** gpt-oss:120b invalid 0.075 (was 0.474 pre-fix), gemma4
+  0.006, one dead-player reference in 10 games across all models.
+- **Limits:** n is 10-40 accusations per model. 4 API errors and 44 unresolved moves, the
+  bulk of both from minimax-m3.
