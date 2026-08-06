@@ -10,6 +10,34 @@ Companion files:
 - `RESULTS.md` — the experiment log, one numbered entry per batch.
 - **This file** — architecture, conventions, and the defect log below.
 
+## Resume here (state as of 2026-08-06)
+
+**A 100-game batch is running detached** and survives this session ending; the watcher
+does not, so re-arm one if you want progress notifications.
+
+- roster `hosted-heavy` (5x gpt-oss:120b + 3x nemotron-3-super + 2x rule-based control),
+  `--games=100 --seed=7`, defense phase ON. Session dir: `logs/session-2026-08-06T14-51-04-482Z`
+- watch live: `tail -f /private/tmp/claude-501/-Users-seth-Desktop-temp-coding-mafiaAI/8db63e96-7dd6-4fc7-890b-c4146fc83e8c/scratchpad/018_defense.log`
+- report on it specifically: `node src/report.js --session=logs/session-2026-08-06T14-51-04-482Z`
+  (**pass `--session` explicitly** — the generator otherwise picks the newest session
+  containing a game, which is wrong the moment any other run happens afterwards)
+- check it is alive: `pgrep -f 'roster=hosted-heavy'`; a 1-2 minute gap between writes is
+  normal, nemotron averages ~40 s/call
+
+**Two things a fresh session should not assume are settled:**
+
+1. **The defense phase has never completed a model batch.** Its only validation is four
+   scripted games, where one defense produced a tied vote. Run 018 is the first real test;
+   treat its persuasion numbers as provisional until `defenses.total` is large.
+2. **Open question 4 is blocked, not untested.** All four frontier API accounts are
+   unfunded (RESULTS 012). It is the check that validates every other number in
+   `RESULTS.md`, so until one is funded, no row here has an established ceiling.
+
+**Highest-value work outstanding**, in order: fund one frontier provider (~$9-18 buys 30
+games of Sonnet 5 and closes question 4); run `--no-defense` at seed 7 as the paired arm
+for question 5; free local memory and rerun `ten-model` for the ten-model batch that
+DEFECT 16 was blocking.
+
 ## Project purpose
 
 AI-vs-AI Mafia as a **social-deduction benchmark**. The claim it exists to support is
