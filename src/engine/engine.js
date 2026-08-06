@@ -1,7 +1,7 @@
 const { PHASE } = require('./state.js');
 const { FACTION, NIGHT_ORDER, getRole } = require('./roles.js');
 const { nightPrompt, mafiaChatPrompt, statementPrompt, defensePrompt, votePrompt } = require('../agents/prompts.js');
-const { logGameEvent, logPhase } = require('../logger.js');
+const { logGameEvent, logPhase, logNarration } = require('../logger.js');
 
 /**
  * The Mafia phase machine.
@@ -100,7 +100,7 @@ class GameEngine {
       survivors: s.livingNames(),
     };
     logGameEvent({ type: 'game_end', ...outcome, message: this.describeOutcome() });
-    console.log(`\n${this.describeOutcome()}\n`);
+    this.say(`\n${this.describeOutcome()}\n`);
     return outcome;
   }
 
@@ -129,8 +129,14 @@ class GameEngine {
 
   announce(text, extra = {}) {
     const entry = this.state.addPublic({ type: 'announcement', actor: 'narrator', text, ...extra });
-    console.log(`  * ${text}`);
+    this.say(`  * ${text}`);
     return entry;
+  }
+
+  /** Print to stdout AND to events.log, so a session can be watched live. */
+  say(text) {
+    console.log(text);
+    logNarration(text);
   }
 
   // --- night --------------------------------------------------------------
@@ -139,7 +145,7 @@ class GameEngine {
     const s = this.state;
     s.phase = PHASE.NIGHT;
     logPhase({ day: s.day, phase: PHASE.NIGHT });
-    console.log(`\n=== NIGHT ${s.day} ===`);
+    this.say(`\n=== NIGHT ${s.day} ===`);
 
     const mafia = s.livingMafia();
 
@@ -190,7 +196,7 @@ class GameEngine {
           text: `[Mafia channel, night ${this.state.day}] ${m.name}: "${message}"`,
         });
       }
-      console.log(`  [mafia] ${m.name}: ${message}`);
+      this.say(`  [mafia] ${m.name}: ${message}`);
     }
   }
 
@@ -320,7 +326,7 @@ class GameEngine {
     const s = this.state;
     s.phase = PHASE.DISCUSSION;
     logPhase({ day: s.day, phase: PHASE.DISCUSSION });
-    console.log(`\n=== DAY ${s.day} — DISCUSSION ===`);
+    this.say(`\n=== DAY ${s.day} — DISCUSSION ===`);
 
     const rounds = this.config.discussionRounds;
 
@@ -388,7 +394,7 @@ class GameEngine {
     // Speech channel: what everyone reads.
     const statement = fields.STATEMENT || '(remains silent)';
     s.addPublic({ type: 'statement', actor: speaker.name, text: statement, round });
-    console.log(`  ${speaker.name}: ${statement}`);
+    this.say(`  ${speaker.name}: ${statement}`);
   }
 
   /**
@@ -456,7 +462,7 @@ class GameEngine {
       // Filled in by runExecution once the vote resolves.
       survived: null,
     });
-    console.log(`  [defense] ${accused.name}: ${text}`);
+    this.say(`  [defense] ${accused.name}: ${text}`);
   }
 
   // --- vote ---------------------------------------------------------------
@@ -465,7 +471,7 @@ class GameEngine {
     const s = this.state;
     s.phase = PHASE.VOTE;
     logPhase({ day: s.day, phase: PHASE.VOTE });
-    console.log(`\n=== DAY ${s.day} — VOTE ===`);
+    this.say(`\n=== DAY ${s.day} — VOTE ===`);
 
     const voters = this.rotate(s.livingPlayers(), s.day - 1);
 
@@ -502,7 +508,7 @@ class GameEngine {
           `  ${voter.name} votes ??? -> could not resolve "${fields.VOTE ?? '(none)'}" (${violation}), random legal vote ${target}`
         );
       } else {
-        console.log(`  ${voter.name} votes ${target}`);
+        this.say(`  ${voter.name} votes ${target}`);
       }
 
       const stated = s.suspicions.filter((x) => x.day === s.day && x.actor === voter.name).pop();

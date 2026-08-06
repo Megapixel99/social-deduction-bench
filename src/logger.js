@@ -101,6 +101,19 @@ function logAgentTurn({ player, provider, model, kind, day, phase, fields, missi
   return entry;
 }
 
+/**
+ * Append one line of game narration to `events.log`.
+ *
+ * `events.log` is documented as the human-readable event stream, but for most of this
+ * project it carried only phase markers and errors — the statements, defenses and votes
+ * went to stdout, so the only way to watch a game live was to tail the batch's stdout
+ * wherever it happened to be redirected. This makes the session directory itself
+ * watchable by tailing `events.log` inside the session directory.
+ */
+function logNarration(text) {
+  readable(text);
+}
+
 /** Full request/response, appended immediately as one JSON line. */
 function logApiCall({ player, provider, model, kind, requestMessages, responseText, tokensUsed, latencyMs }) {
   if (!sessionDir) return;
@@ -183,6 +196,7 @@ function getSessionId() {
 
 module.exports = {
   initSession,
+  logNarration,
   startGame,
   logGameEvent,
   logPhase,
