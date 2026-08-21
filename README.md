@@ -8,6 +8,11 @@ The game is Mafia because it isolates the thing worth measuring; the name is
 `social-deduction-bench` because the instrument is the contribution, not the game. Nothing
 here ranks models by whether they won.
 
+**Write-up:** [Ranking Language Models by How Well They Spot
+Liars](https://sethwheeler.dev/blog/ranking-models-on-spotting-liars/) — 522 games in,
+the same model scored -0.400 and +0.078 fifty-two games apart, and Day 1 accusations
+came in at -0.005 against chance on n=2,103.
+
 > **Note on authorship.** A self-directed research project. The concept, research
 > questions and system design are mine; much of the implementation was AI-assisted
 > (built with coding agents). Findings here are exploratory, not rigorously validated.
